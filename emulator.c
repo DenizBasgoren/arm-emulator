@@ -69,10 +69,10 @@ int32_t execute(void)
 #define SP  (cpu.reg[13])
 #define LR  (cpu.reg[14])
 #define PC  (cpu.reg[15])
-
+#define FLG (cpu.cpsr)
+	
 	uint32_t inst = rom[PC - 2] | rom[PC - 1] << 8;
 	PC += 2;
-
 
 	return(1);
 
@@ -92,6 +92,7 @@ int32_t execute(void)
 #undef SP 
 #undef LR 
 #undef PC 
+#undef FLG
 }
 
 //Resets the CPU and initializes the registers
