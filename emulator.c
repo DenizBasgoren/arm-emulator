@@ -90,6 +90,8 @@ int32_t execute_next(void)
 	fprintf(stderr, "invalid instruction 0x%08X 0x%04X\n", pc - 4, inst);
 #endif
 
+#define GET_BITS(bits, start, offset) (((bits) >> ((start) - (offset) + 1)) & ((1 << (offset)) - 1))
+
 #define R0  (cpu.reg[ 0])
 #define R1  (cpu.reg[ 1])
 #define R2  (cpu.reg[ 2])
@@ -107,15 +109,15 @@ int32_t execute_next(void)
 #define LR  (cpu.reg[14])
 #define PC  (cpu.reg[15])
 #define PSR (cpu.cpsr)		// This register is called the Program Status Register, page 19
-	
-	uint32_t inst = rom[PC - 2] | rom[PC - 1] << 8;
+
+	uint16_t inst = rom[PC - 2] | rom[PC - 1] << 8;
 	PC += 2;
 
 	// AND
-	if ((inst & 0xFFC0) == 0x4000)
+	if (GET_BITS(inst, 15, 10) == 0b0100'0000'00)
 	{
-		uint8_t rd = (inst >> 0) & 0x7;
-		uint8_t rm = (inst >> 3) & 0x7;
+		uint8_t rd = GET_BITS(inst, 2, 3);
+		uint8_t rm = GET_BITS(inst, 5, 3);
 		uint8_t ra = cpu.reg[rd];
 		uint8_t rb = cpu.reg[rd];
 		uint8_t rc = ra & rb;
@@ -124,10 +126,10 @@ int32_t execute_next(void)
 		return 0;
 	}
 	// EOR
-	else if ((inst & 0xFFC0) == 0x4040)
+	else if (GET_BITS(inst, 15, 10) == 0b0100'0000'01)
 	{
-		uint8_t rd = (inst >> 0) & 0x7;
-		uint8_t rm = (inst >> 3) & 0x7;
+		uint8_t rd = GET_BITS(inst, 2, 3);
+		uint8_t rm = GET_BITS(inst, 5, 3);
 		uint8_t ra = cpu.reg[rd];
 		uint8_t rb = cpu.reg[rd];
 		uint8_t rc = ra ^ rb;
@@ -136,10 +138,10 @@ int32_t execute_next(void)
 		return 0;
 	}
 	// ORR
-	else if ((inst & 0xFFC0) == 0x4300)
+	else if (GET_BITS(inst, 15, 10) == 0b0100'0011'00)
 	{
-		uint8_t rd = (inst >> 0) & 0x7;
-		uint8_t rm = (inst >> 3) & 0x7;
+		uint8_t rd = GET_BITS(inst, 2, 3);
+		uint8_t rm = GET_BITS(inst, 5, 3);
 		uint8_t ra = cpu.reg[rd];
 		uint8_t rb = cpu.reg[rd];
 		uint8_t rc = ra | rb;
@@ -149,24 +151,6 @@ int32_t execute_next(void)
 	}
 
 	return(1);
-
-#undef R0 
-#undef R1 
-#undef R2 
-#undef R3 
-#undef R4 
-#undef R5 
-#undef R6 
-#undef R7 
-#undef R8 
-#undef R9 
-#undef R10
-#undef R11
-#undef R12
-#undef SP 
-#undef LR 
-#undef PC 
-#undef FLG
 }
 
 
