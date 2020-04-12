@@ -1,5 +1,33 @@
 #include "emulib.h"
 
+// start (in order of documentation), offset ( number of bits from start to direction of 0)
+#define GET_BITS(bits, start, offset) (((bits) >> ((start) - (offset) + 1)) & ((1 << (offset)) - 1))
+#define SET_BIT(bits, n) ((bits) |= (1 << (n)))
+#define RESET_BIT(a,b) ((a) &= ~(1ULL<<(b)))
+
+#define R0  (cpu.reg[ 0])
+#define R1  (cpu.reg[ 1])
+#define R2  (cpu.reg[ 2])
+#define R3  (cpu.reg[ 3])
+#define R4  (cpu.reg[ 4])
+#define R5  (cpu.reg[ 5])
+#define R6  (cpu.reg[ 6])
+#define R7  (cpu.reg[ 7])
+#define R8  (cpu.reg[ 8])
+#define R9  (cpu.reg[ 9])
+#define R10 (cpu.reg[10])
+#define R11 (cpu.reg[11])
+#define R12 (cpu.reg[12])
+#define SP  (cpu.reg[13])
+#define LR  (cpu.reg[14])
+#define PC  (cpu.reg[15])
+#define FLG (cpu.cpsr)      // This register is called the Program Status Register
+#define FLG_N (31)
+#define FLG_Z (30)
+#define FLG_C (29)
+#define FLG_V (28)
+
+
 typedef struct {
     int32_t reg[16];
     int32_t cpsr;
@@ -57,33 +85,6 @@ int32_t main(int32_t argc, char* argv[])
 //Fetches an instruction from ROM, decodes and executes it
 int32_t execute_next(void)
 {
-
-// start (in order of documentation), offset ( number of bits from start to direction of 0)
-#define GET_BITS(bits, start, offset) (((bits) >> ((start) - (offset) + 1)) & ((1 << (offset)) - 1))
-#define SET_BIT(bits, n) ((bits) |= (1 << (n)))
-#define RESET_BIT(a,b) ((a) &= ~(1ULL<<(b)))
-
-#define R0  (cpu.reg[ 0])
-#define R1  (cpu.reg[ 1])
-#define R2  (cpu.reg[ 2])
-#define R3  (cpu.reg[ 3])
-#define R4  (cpu.reg[ 4])
-#define R5  (cpu.reg[ 5])
-#define R6  (cpu.reg[ 6])
-#define R7  (cpu.reg[ 7])
-#define R8  (cpu.reg[ 8])
-#define R9  (cpu.reg[ 9])
-#define R10 (cpu.reg[10])
-#define R11 (cpu.reg[11])
-#define R12 (cpu.reg[12])
-#define SP  (cpu.reg[13])
-#define LR  (cpu.reg[14])
-#define PC  (cpu.reg[15])
-#define FLG (cpu.cpsr)      // This register is called the Program Status Register
-#define FLG_N (31)
-#define FLG_Z (30)
-#define FLG_C (29)
-#define FLG_V (28)
 
     uint16_t inst = rom[PC - 2] | rom[PC - 1] << 8;
     PC += 2;
