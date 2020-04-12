@@ -69,10 +69,47 @@ int32_t execute(void)
 #define SP  (cpu.reg[13])
 #define LR  (cpu.reg[14])
 #define PC  (cpu.reg[15])
-#define FLG (cpu.cpsr)
+#define PSR (cpu.cpsr)		// This register is called the Program Status Register, page 19
 	
 	uint32_t inst = rom[PC - 2] | rom[PC - 1] << 8;
 	PC += 2;
+
+	// AND
+	if ((inst & 0xFFC0) == 0x4000)
+	{
+		uint8_t rd = (inst >> 0) & 0x7;
+		uint8_t rm = (inst >> 3) & 0x7;
+		uint8_t ra = cpu.reg[rd];
+		uint8_t rb = cpu.reg[rd];
+		uint8_t rc = ra & rb;
+		cpu.reg[rd] = rc;
+		// TODO: Set the zero flag to 1 if rc is 0
+		return 0;
+	}
+	// EOR
+	else if ((inst & 0xFFC0) == 0x4040)
+	{
+		uint8_t rd = (inst >> 0) & 0x7;
+		uint8_t rm = (inst >> 3) & 0x7;
+		uint8_t ra = cpu.reg[rd];
+		uint8_t rb = cpu.reg[rd];
+		uint8_t rc = ra ^ rb;
+		cpu.reg[rd] = rc;
+		// TODO: Set the zero flag to 1 if rc is 0
+		return 0;
+	}
+	// ORR
+	else if ((inst & 0xFFC0) == 0x4300)
+	{
+		uint8_t rd = (inst >> 0) & 0x7;
+		uint8_t rm = (inst >> 3) & 0x7;
+		uint8_t ra = cpu.reg[rd];
+		uint8_t rb = cpu.reg[rd];
+		uint8_t rc = ra | rb;
+		cpu.reg[rd] = rc;
+		// TODO: Set the zero flag to 1 if rc is 0
+		return 0;
+	}
 
 	return(1);
 
