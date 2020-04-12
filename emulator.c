@@ -57,40 +57,9 @@ int32_t main(int32_t argc, char* argv[])
 //Fetches an instruction from ROM, decodes and executes it
 int32_t execute_next(void)
 {
-#if 0
-    uint32_t pc;
-    uint32_t sp;
-	uint32_t inst;
-	uint32_t ra, rb, rc;
-	uint32_t rm, rd, rn, rs;
-	uint32_t op;
-	uint16_t X;
-
-	pc = cpu.reg[15];
-
-	X = pc - 2;
-	inst = rom[X] | rom[X+1] << 8;
-	pc += 2;
-	cpu.reg[15] = pc;
-	
-	//ORR
-	if ((inst & 0xFFC0) == 0x4300)
-	{
-		rd = (inst >> 0) & 0x7;
-		rm = (inst >> 3) & 0x7;
-		fprintf(stderr, "orrs r%u,r%u\n", rd, rm);
-		ra = cpu.reg[rd];
-		rb = cpu.reg[rm];
-		rc = ra | rb;
-		cpu.reg[rd] = rc;
-		//Update the flags here if necessary (to be filled)
-		return(0);
-	}
-	//Rest of the instructions to be implemented here
-	fprintf(stderr, "invalid instruction 0x%08X 0x%04X\n", pc - 4, inst);
-#endif
-
 #define GET_BITS(bits, start, offset) (((bits) >> ((start) - (offset) + 1)) & ((1 << (offset)) - 1))
+#define SET_BIT(bits, n) ((bits) |= (1 << (n)))
+#define RESET_BIT(a,b) ((a) &= ~(1ULL<<(b)))
 
 #define R0  (cpu.reg[ 0])
 #define R1  (cpu.reg[ 1])
@@ -108,7 +77,11 @@ int32_t execute_next(void)
 #define SP  (cpu.reg[13])
 #define LR  (cpu.reg[14])
 #define PC  (cpu.reg[15])
-#define PSR (cpu.cpsr)		// This register is called the Program Status Register, page 19
+#define FLG (cpu.cpsr)		// This register is called the Program Status Register
+#define FLG_N (31)
+#define FLG_Z (30)
+#define FLG_C (29)
+#define FLG_V (28)
 
 	uint16_t inst = rom[PC - 2] | rom[PC - 1] << 8;
 	PC += 2;
@@ -122,7 +95,10 @@ int32_t execute_next(void)
 		uint8_t rb = cpu.reg[rd];
 		uint8_t rc = ra & rb;
 		cpu.reg[rd] = rc;
-		// TODO: Set the zero flag to 1 if rc is 0
+		if(rc == 0) SET_BIT(FLG, FLG_Z);
+		else RESET_BIT(FLG, FLG_Z);
+
+		fprintf(stderr, "ANDS r%u,r%u\n", rd, rm);
 		return 0;
 	}
 	// EOR
@@ -134,7 +110,10 @@ int32_t execute_next(void)
 		uint8_t rb = cpu.reg[rd];
 		uint8_t rc = ra ^ rb;
 		cpu.reg[rd] = rc;
-		// TODO: Set the zero flag to 1 if rc is 0
+		if(rc == 0) SET_BIT(FLG, FLG_Z);
+		else RESET_BIT(FLG, FLG_Z);
+
+		fprintf(stderr, "EORS r%u,r%u\n", rd, rm);
 		return 0;
 	}
 	// ORR
@@ -146,11 +125,15 @@ int32_t execute_next(void)
 		uint8_t rb = cpu.reg[rd];
 		uint8_t rc = ra | rb;
 		cpu.reg[rd] = rc;
-		// TODO: Set the zero flag to 1 if rc is 0
+		if(rc == 0) SET_BIT(FLG, FLG_Z);
+		else RESET_BIT(FLG, FLG_Z);
+
+		fprintf(stderr, "ORRS r%u,r%u\n", rd, rm);
 		return 0;
 	}
 
-	return(1);
+	fprintf(stderr, "invalid instruction 0x%08X 0x%04X\n", PC - 4, inst);
+	return 1;
 }
 
 
