@@ -150,11 +150,11 @@ int32_t load_program(char *path, uint8_t *rom) {
 	printf("Code size: %u bytes, instruction count: %u\n", len, len / 4);
 
 	// REMOVE BINARIES AFTER ROM LOAD
-	sprintf(cmd, "rm ./armapp.*");
-	if (system(cmd) != 0)
-	{
-		return -1;
-	}
+	// sprintf(cmd, "rm ./armapp.*");
+	// if (system(cmd) != 0)
+	// {
+	// 	return -1;
+	// }
 	// END
 
 	return len;
