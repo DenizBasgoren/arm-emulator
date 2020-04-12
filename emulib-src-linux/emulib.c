@@ -147,7 +147,7 @@ int32_t load_program(char *path, uint8_t *rom) {
 
 	fclose(infile);
 	printf("Successfully assembled and loaded the program\n");
-	printf("Code size: %u bytes, instruction count: %u\n", len, len / 4);
+	printf("Code size: %u bytes, instruction count: %u\n", len, len / 2);
 
 	// REMOVE BINARIES AFTER ROM LOAD
 	// sprintf(cmd, "rm ./armapp.*");

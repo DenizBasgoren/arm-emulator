@@ -9,16 +9,53 @@ uint8_t rom[0x200000];
 uint8_t ram[0x100000];
 tCPU cpu;
 
-//Fetches an instruction from the given address
-//and returns its encoded value
-int16_t fetch(uint32_t addr)
+
+int32_t execute_next(void);
+
+
+//Emulator main function
+int32_t main(int32_t argc, char* argv[])
 {
-	//to be implemented
-	return 0;
+	if (argc < 2)
+	{
+		fprintf(stderr, "input assembly file not specified\n");
+		return(1);
+	}
+
+	memset(rom, 0xFF, sizeof(rom));
+
+	system_init();
+
+	if (load_program(argv[1], rom) < 0)
+	{
+		return(1);
+	}
+	
+	memset(ram, 0xFF, sizeof(ram));
+
+	cpu.cpsr = 0;
+
+	cpu.reg[14] = 0xFFFFFFFF;
+	//First 4 bytes in ROM specifies initializes the stack pointer
+	cpu.reg[13] = rom[0] | rom[1] << 8 | rom[2] << 16 | rom[3] << 24;
+	//Following 4 bytes in ROM initializes the PC
+	cpu.reg[15] = rom[4] | rom[5] << 8 | rom[6] << 16 | rom[7] << 24;
+	cpu.reg[15] += 2;
+
+	while (1)
+	{
+		if (execute_next()) break;
+	}
+
+	system_deinit();
+
+	return(0);
 }
 
+
+
 //Fetches an instruction from ROM, decodes and executes it
-int32_t execute(void)
+int32_t execute_next(void)
 {
 #if 0
     uint32_t pc;
@@ -132,55 +169,4 @@ int32_t execute(void)
 #undef FLG
 }
 
-//Resets the CPU and initializes the registers
-int32_t reset(void)
-{
-	memset(ram, 0xFF, sizeof(ram));
 
-	cpu.cpsr = 0;
-
-	cpu.reg[14] = 0xFFFFFFFF;
-	//First 4 bytes in ROM specifies initializes the stack pointer
-	cpu.reg[13] = rom[0] | rom[1] << 8 | rom[2] << 16 | rom[3] << 24;
-	//Following 4 bytes in ROM initializes the PC
-	cpu.reg[15] = rom[4] | rom[5] << 8 | rom[6] << 16 | rom[7] << 24;
-	cpu.reg[15] += 2;
-	return(0);
-}
-
-//Emulator loop
-int32_t run(void)
-{
-	reset();
-	while (1)
-	{
-		if (execute()) break;
-	}
-	return(0);
-}
-
-//Emulator main function
-int32_t main(int32_t argc, char* argv[])
-{
-	if (argc < 2)
-	{
-		fprintf(stderr, "input assembly file not specified\n");
-		return(1);
-	}
-
-	memset(rom, 0xFF, sizeof(rom));
-
-	system_init();
-
-	if (load_program(argv[1], rom) < 0)
-	{
-		return(1);
-	}
-
-	memset(ram, 0x00, sizeof(ram));
-	run();
-
-	system_deinit();
-
-	return(0);
-}
