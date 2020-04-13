@@ -203,9 +203,57 @@ int32_t execute_next(void)
         return 0;
     }
 
+    // MOV
+    else if (GET_BITS(inst, 15, 5) == 0b0010'0) {
+        uint8_t rd = GET_BITS(inst, 10, 3);
+        uint8_t immed = GET_BITS(inst, 7, 8);
 
+        cpu.reg[rd] = immed;
 
+        // nz flags?
+        // todo: impl carry, overflo, conditions..
+        return 0;
+    }
 
+    // CMP
+    else if (GET_BITS(inst, 15, 5) == 0b0010'1) {
+        uint8_t rn = GET_BITS(inst, 10, 3);
+        uint8_t immed = GET_BITS(inst, 7, 8);
+
+        uint32_t dif = cpu.reg[rn] - immed;
+
+        update_nz_flags(dif);
+        // todo: impl carry, overflo, conditions..
+        return 0;
+    }
+
+    // ADD
+    else if (GET_BITS(inst, 15, 5) == 0b0011'0) {
+        uint8_t rd = GET_BITS(inst, 10, 3);
+        uint8_t immed = GET_BITS(inst, 7, 8);
+
+        uint32_t ra = cpu.reg[rd];
+        ra += immed;
+
+        cpu.reg[rd] = ra;
+        update_nz_flags(ra);
+        // todo: impl carry, overflo, conditions..
+        return 0;
+    }
+
+    // SUB
+    else if (GET_BITS(inst, 15, 5) == 0b0011'1) {
+        uint8_t rd = GET_BITS(inst, 10, 3);
+        uint8_t immed = GET_BITS(inst, 7, 8);
+
+        uint32_t ra = cpu.reg[rd];
+        ra -= immed;
+
+        cpu.reg[rd] = ra;
+        update_nz_flags(ra);
+        // todo: impl carry, overflo, conditions..
+        return 0;
+    }
 
     // ANDS
     else if (GET_BITS(inst, 15, 10) == 0b0100'0000'00)
