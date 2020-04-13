@@ -577,7 +577,55 @@ int32_t execute_next(void)
         
         update_nz_flags(ra);
         // TODO; CARRY, V FLAGS
+
+        return 0;
+    }
+
+    // CMP
+    else if (GET_BITS(inst, 15, 10) == 0b0100'0101'01)
+    {
+        uint8_t rd = GET_BITS(inst, 2, 3);
+        uint8_t rm = GET_BITS(inst, 5, 3);
+        uint32_t ra = cpu.reg[rd];
+        uint32_t rb = cpu.reg[rm+8];
         
+        uint32_t dif = ra - rb;
+
+        update_nz_flags(dif);
+        // TODO; CARRY, V FLAGS
+
+        return 0;
+    }
+
+    // CMP
+    else if (GET_BITS(inst, 15, 10) == 0b0100'0101'10)
+    {
+        uint8_t rd = GET_BITS(inst, 2, 3);
+        uint8_t rm = GET_BITS(inst, 5, 3);
+        uint32_t ra = cpu.reg[rd+8];
+        uint32_t rb = cpu.reg[rm];
+        
+        uint32_t dif = ra - rb;
+
+        update_nz_flags(dif);
+        // TODO; CARRY, V FLAGS
+
+        return 0;
+    }
+
+    // CMP
+    else if (GET_BITS(inst, 15, 10) == 0b0100'0101'11)
+    {
+        uint8_t rd = GET_BITS(inst, 2, 3);
+        uint8_t rm = GET_BITS(inst, 5, 3);
+        uint32_t ra = cpu.reg[rd+8];
+        uint32_t rb = cpu.reg[rm+8];
+        
+        uint32_t dif = ra - rb;
+
+        update_nz_flags(dif);
+        // TODO; CARRY, V FLAGS
+
         return 0;
     }
 
