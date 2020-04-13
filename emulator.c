@@ -96,22 +96,59 @@ int32_t execute_next(void)
     uint16_t inst = rom[PC - 2] | rom[PC - 1] << 8;
     PC += 2;
 
+    // TODO: operands should be uint32_t or int32_t?
+
+    // todo: check operator precedence: cast, >> 
     // LSL
     if (GET_BITS(inst, 15, 5) == 0b0000'0) {
         uint8_t immed = GET_BITS(inst, 10, 5);
         uint8_t rm = GET_BITS(inst, 5, 3);
         uint8_t rd = GET_BITS(inst, 2, 3);
 
-        uint32_t rc = cpu.reg[rm] << immed;
+        uint32_t rc = (uint32_t) cpu.reg[rm] << immed;
         cpu.reg[rd] = rc;
 
         update_nz_flags(rc);
-
+        // todo: impl carry, conditions..
         return 0;
     }
 
+    // LSR
+    else if (GET_BITS(inst, 15, 5) == 0b0000'0) {
+        uint8_t immed = GET_BITS(inst, 10, 5);
+        uint8_t rm = GET_BITS(inst, 5, 3);
+        uint8_t rd = GET_BITS(inst, 2, 3);
+
+        uint32_t rc = (uint32_t) cpu.reg[rm] >> immed;
+        cpu.reg[rd] = rc;
+
+        update_nz_flags(rc);
+        // todo: impl carry, conditions..
+        return 0;
+    }
+
+    // ASR
+    else if (GET_BITS(inst, 15, 5) == 0b0001'0) {
+        uint8_t immed = GET_BITS(inst, 10, 5);
+        uint8_t rm = GET_BITS(inst, 5, 3);
+        uint8_t rd = GET_BITS(inst, 2, 3);
+
+        int32_t rc = cpu.reg[rm] >> immed;
+        cpu.reg[rd] = rc;
+
+        update_nz_flags(rc);
+        // todo: impl carry, conditions..
+        return 0;
+    }
+
+
+
+
+
+
+
     // ANDS
-    if (GET_BITS(inst, 15, 10) == 0b0100'0000'00)
+    else if (GET_BITS(inst, 15, 10) == 0b0100'0000'00)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
