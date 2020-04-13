@@ -465,6 +465,126 @@ int32_t execute_next(void)
         update_nz_flags(rc);
         return 0;
     }
+
+    // CPY // ???????
+    else if (GET_BITS(inst, 15, 10) == 0b0100'0110'00)
+    {
+        uint8_t rd = GET_BITS(inst, 2, 3);
+        uint8_t rm = GET_BITS(inst, 5, 3);
+        uint32_t ra = cpu.reg[rm];
+        cpu.reg[rd] = ra;
+        
+        update_nz_flags(ra);
+        // TODO; CARRY, V FLAGS
+        return 0;
+    }
+
+    // ADD
+    else if (GET_BITS(inst, 15, 10) == 0b0100'0100'01)
+    {
+        uint8_t rd = GET_BITS(inst, 2, 3);
+        uint8_t rm = GET_BITS(inst, 5, 3);
+        uint32_t ra = cpu.reg[rd];
+        uint32_t rb = cpu.reg[rm+8];
+        
+        ra += rb;
+        cpu.reg[rd] = ra;
+        
+        update_nz_flags(ra);
+        // TODO; CARRY, V FLAGS
+
+        return 0;
+    }
+
+    // MOV
+    else if (GET_BITS(inst, 15, 10) == 0b0100'0110'01)
+    {
+        uint8_t rd = GET_BITS(inst, 2, 3);
+        uint8_t rm = GET_BITS(inst, 5, 3);
+        uint32_t ra = cpu.reg[rd];
+        uint32_t rb = cpu.reg[rm+8];
+        
+        ra = rb;
+        cpu.reg[rd] = ra;
+        
+        update_nz_flags(ra);
+        // TODO; CARRY, V FLAGS
+
+        return 0;
+    }
+
+    // ADD
+    else if (GET_BITS(inst, 15, 10) == 0b0100'0100'10)
+    {
+        uint8_t rd = GET_BITS(inst, 2, 3);
+        uint8_t rm = GET_BITS(inst, 5, 3);
+        uint32_t ra = cpu.reg[rd+8];
+        uint32_t rb = cpu.reg[rm];
+        
+        ra += rb;
+        cpu.reg[rd+8] = ra;
+        
+        update_nz_flags(ra);
+        // TODO; CARRY, V FLAGS
+
+        return 0;
+    }
+
+    // MOV
+    else if (GET_BITS(inst, 15, 10) == 0b0100'0110'10)
+    {
+        uint8_t rd = GET_BITS(inst, 2, 3);
+        uint8_t rm = GET_BITS(inst, 5, 3);
+        uint32_t ra = cpu.reg[rd+8];
+        uint32_t rb = cpu.reg[rm];
+        
+        ra = rb;
+        cpu.reg[rd+8] = ra;
+        
+        update_nz_flags(ra);
+        // TODO; CARRY, V FLAGS
+
+        return 0;
+    }
+
+    // ADD
+    else if (GET_BITS(inst, 15, 10) == 0b0100'0100'11)
+    {
+        uint8_t rd = GET_BITS(inst, 2, 3);
+        uint8_t rm = GET_BITS(inst, 5, 3);
+        uint32_t ra = cpu.reg[rd+8];
+        uint32_t rb = cpu.reg[rm+8];
+        
+        ra += rb;
+        cpu.reg[rd+8] = ra;
+        
+        update_nz_flags(ra);
+        // TODO; CARRY, V FLAGS
+
+        return 0;
+    }
+
+    // MOV
+    else if (GET_BITS(inst, 15, 10) == 0b0100'0110'11)
+    {
+        uint8_t rd = GET_BITS(inst, 2, 3);
+        uint8_t rm = GET_BITS(inst, 5, 3);
+        uint32_t ra = cpu.reg[rd+8];
+        uint32_t rb = cpu.reg[rm+8];
+        
+        ra = rb;
+        cpu.reg[rd+8] = ra;
+        
+        update_nz_flags(ra);
+        // TODO; CARRY, V FLAGS
+        
+        return 0;
+    }
+
+
+
+
+
     
     fprintf(stderr, "invalid instruction 0x%08X 0x%04X\n", PC - 4, inst);
     return 1;
