@@ -39,6 +39,7 @@ tCPU cpu;
 
 
 int32_t execute_next(void);
+void update_nz_flags(int32_t reg);
 
 
 //Emulator main function
@@ -81,6 +82,12 @@ int32_t main(int32_t argc, char* argv[])
 }
 
 
+void update_nz_flags(int32_t reg) {
+        if(reg == 0) SET_BIT(FLG, FLG_Z);
+        else RESET_BIT(FLG, FLG_Z);
+        if (reg >= (1 << 31)) SET_BIT(FLG, FLG_N);
+        else RESET_BIT(FLG, FLG_N);
+}
 
 //Fetches an instruction from ROM, decodes and executes it
 int32_t execute_next(void)
@@ -98,10 +105,7 @@ int32_t execute_next(void)
         uint32_t rc = cpu.reg[rm] << immed;
         cpu.reg[rd] = rc;
 
-        if(rc == 0) SET_BIT(FLG, FLG_Z);
-        else RESET_BIT(FLG, FLG_Z);
-        if (rc >= (1 << 31)) SET_BIT(FLG, FLG_N);
-        else RESET_BIT(FLG, FLG_N);
+        update_nz_flags(rc);
 
         return 0;
     }
@@ -116,10 +120,8 @@ int32_t execute_next(void)
         uint32_t rc = ra & rb;
         cpu.reg[rd] = rc;
         
-        if(rc == 0) SET_BIT(FLG, FLG_Z);
-        else RESET_BIT(FLG, FLG_Z);
-        if (rc >= (1 << 31)) SET_BIT(FLG, FLG_N);
-        else RESET_BIT(FLG, FLG_N);
+        update_nz_flags(rc);
+
 
         return 0;
     }
@@ -133,11 +135,7 @@ int32_t execute_next(void)
         uint32_t rc = ra ^ rb;
         cpu.reg[rd] = rc;
         
-        if(rc == 0) SET_BIT(FLG, FLG_Z);
-        else RESET_BIT(FLG, FLG_Z);
-        if (rc >= (1 << 31)) SET_BIT(FLG, FLG_N);
-        else RESET_BIT(FLG, FLG_N);
-
+        update_nz_flags(rc);
         return 0;
     }
     // LSLS
@@ -150,11 +148,7 @@ int32_t execute_next(void)
         uint32_t rc = ra << rb;
         cpu.reg[rd] = rc;
         
-        if(rc == 0) SET_BIT(FLG, FLG_Z);
-        else RESET_BIT(FLG, FLG_Z);
-        if (rc >= (1 << 31)) SET_BIT(FLG, FLG_N);
-        else RESET_BIT(FLG, FLG_N);
-
+        update_nz_flags(rc);
         return 0;
     }
     // LSRS
@@ -167,11 +161,7 @@ int32_t execute_next(void)
         uint32_t rc = ra >> rb;
         cpu.reg[rd] = rc;
         
-        if(rc == 0) SET_BIT(FLG, FLG_Z);
-        else RESET_BIT(FLG, FLG_Z);
-        if (rc >= (1 << 31)) SET_BIT(FLG, FLG_N);
-        else RESET_BIT(FLG, FLG_N);
-
+        update_nz_flags(rc);
         return 0;
     }
     // ASRS
@@ -184,11 +174,7 @@ int32_t execute_next(void)
         int32_t rc = ra >> rb;
         cpu.reg[rd] = rc;
         
-        if(rc == 0) SET_BIT(FLG, FLG_Z);
-        else RESET_BIT(FLG, FLG_Z);
-        if (rc < 0) SET_BIT(FLG, FLG_N);
-        else RESET_BIT(FLG, FLG_N);
-
+        update_nz_flags(rc);
         return 0;
     }
     // ADCS
@@ -201,11 +187,7 @@ int32_t execute_next(void)
         int32_t rc = ra + rb;
         cpu.reg[rd] = rc + GET_BITS(FLG, FLG_C, 1);
         
-        if(rc == 0) SET_BIT(FLG, FLG_Z);
-        else RESET_BIT(FLG, FLG_Z);
-        if (rc < 0) SET_BIT(FLG, FLG_N);
-        else RESET_BIT(FLG, FLG_N);
-
+        update_nz_flags(rc);
         // TODO: Add the carry flag code
 
         if(ra > 0 && rb > 0 && rc < 0) SET_BIT(FLG, FLG_V);
@@ -224,11 +206,7 @@ int32_t execute_next(void)
         int32_t rc = rb - ra;
         cpu.reg[rd] = rc - GET_BITS(FLG, FLG_C, 1);
         
-        if(rc == 0) SET_BIT(FLG, FLG_Z);
-        else RESET_BIT(FLG, FLG_Z);
-        if (rc < 0) SET_BIT(FLG, FLG_N);
-        else RESET_BIT(FLG, FLG_N);
-
+        update_nz_flags(rc);
         // TODO: Add the overflow and carry flag code
 
         return 0;
@@ -243,11 +221,7 @@ int32_t execute_next(void)
         uint32_t rc = (ra >> rb) | (ra << (32 - rb));
         cpu.reg[rd] = rc;
         
-        if(rc == 0) SET_BIT(FLG, FLG_Z);
-        else RESET_BIT(FLG, FLG_Z);
-        if (rc >= (1 << 31)) SET_BIT(FLG, FLG_N);
-        else RESET_BIT(FLG, FLG_N);
-
+        update_nz_flags(rc);
         // TODO: Add the carry flag code
 
         return 0;
@@ -262,11 +236,7 @@ int32_t execute_next(void)
         uint32_t rc = ra & rb;
         cpu.reg[rd] = rc;
         
-        if(rc == 0) SET_BIT(FLG, FLG_Z);
-        else RESET_BIT(FLG, FLG_Z);
-        if (rc >= (1 << 31)) SET_BIT(FLG, FLG_N);
-        else RESET_BIT(FLG, FLG_N);
-
+        update_nz_flags(rc);
         return 0;
     }
 
@@ -280,11 +250,7 @@ int32_t execute_next(void)
         uint32_t rc = ~ra;
         cpu.reg[rd] = rc;
         
-        if (rc == 0) SET_BIT(FLG, FLG_Z);
-        else RESET_BIT(FLG, FLG_Z);
-        if (rc >= (1 << 31)) SET_BIT(FLG, FLG_N);
-        else RESET_BIT(FLG, FLG_N);
-        
+        update_nz_flags(rc);
         return 0;
     }
     // CMP
@@ -296,11 +262,7 @@ int32_t execute_next(void)
         int32_t rb = cpu.reg[rm];
         int32_t rc = ra - rb;
         
-        if(rc == 0) SET_BIT(FLG, FLG_Z);
-        else RESET_BIT(FLG, FLG_Z);
-        if (rc < 0) SET_BIT(FLG, FLG_N);
-        else RESET_BIT(FLG, FLG_N);
-
+        update_nz_flags(rc);
         // TODO: Add the overflow and carry flag code
         
         return 0;
@@ -314,11 +276,7 @@ int32_t execute_next(void)
         int32_t rb = cpu.reg[rm];
         int32_t rc = ra + rb;
         
-        if(rc == 0) SET_BIT(FLG, FLG_Z);
-        else RESET_BIT(FLG, FLG_Z);
-        if (rc < 0) SET_BIT(FLG, FLG_N);
-        else RESET_BIT(FLG, FLG_N);
-
+        update_nz_flags(rc);
         // TODO: Add the overflow and carry flag code
         
         return 0;
@@ -333,11 +291,7 @@ int32_t execute_next(void)
         uint32_t rc = ra | rb;
         cpu.reg[rd] = rc;
         
-        if(rc == 0) SET_BIT(FLG, FLG_Z);
-        else RESET_BIT(FLG, FLG_Z);
-        if (rc >= (1 << 31)) SET_BIT(FLG, FLG_N);
-        else RESET_BIT(FLG, FLG_N);
-
+        update_nz_flags(rc);
         return 0;
     }
     // BICS
@@ -350,11 +304,7 @@ int32_t execute_next(void)
         uint32_t rc = ra & ~rb;
         cpu.reg[rd] = rc;
         
-        if(rc == 0) SET_BIT(FLG, FLG_Z);
-        else RESET_BIT(FLG, FLG_Z);
-        if (rc >= (1 << 31)) SET_BIT(FLG, FLG_N);
-        else RESET_BIT(FLG, FLG_N);
-
+        update_nz_flags(rc);
         return 0;
     }
 
@@ -367,11 +317,7 @@ int32_t execute_next(void)
         uint32_t rc = ~ra;
         cpu.reg[rd] = rc;
         
-        if (rc == 0) SET_BIT(FLG, FLG_Z);
-        else RESET_BIT(FLG, FLG_Z);
-        if (rc >= (1 << 31)) SET_BIT(FLG, FLG_N);
-        else RESET_BIT(FLG, FLG_N);
-
+        update_nz_flags(rc);
         return 0;
     }
     
