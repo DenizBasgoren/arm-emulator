@@ -89,6 +89,23 @@ int32_t execute_next(void)
     uint16_t inst = rom[PC - 2] | rom[PC - 1] << 8;
     PC += 2;
 
+    // LSL
+    if (GET_BITS(inst, 15, 5) == 0b0000'0) {
+        uint8_t immed = GET_BITS(inst, 10, 5);
+        uint8_t rm = GET_BITS(inst, 5, 3);
+        uint8_t rd = GET_BITS(inst, 2, 3);
+
+        uint32_t rc = cpu.reg[rm] << immed;
+        cpu.reg[rd] = rc;
+
+        if(rc == 0) SET_BIT(FLG, FLG_Z);
+        else RESET_BIT(FLG, FLG_Z);
+        if (rc >= (1 << 31)) SET_BIT(FLG, FLG_N);
+        else RESET_BIT(FLG, FLG_N);
+
+        return 0;
+    }
+
     // ANDS
     if (GET_BITS(inst, 15, 10) == 0b0100'0000'00)
     {
@@ -104,7 +121,6 @@ int32_t execute_next(void)
         if (rc >= (1 << 31)) SET_BIT(FLG, FLG_N);
         else RESET_BIT(FLG, FLG_N);
 
-        fprintf(stderr, "ANDS r%u,r%u\n", rd, rm);
         return 0;
     }
     // EORS
@@ -122,7 +138,6 @@ int32_t execute_next(void)
         if (rc >= (1 << 31)) SET_BIT(FLG, FLG_N);
         else RESET_BIT(FLG, FLG_N);
 
-        fprintf(stderr, "EORS r%u,r%u\n", rd, rm);
         return 0;
     }
     // LSLS
@@ -140,7 +155,6 @@ int32_t execute_next(void)
         if (rc >= (1 << 31)) SET_BIT(FLG, FLG_N);
         else RESET_BIT(FLG, FLG_N);
 
-        fprintf(stderr, "LSLS r%u,r%u\n", rd, rm);
         return 0;
     }
     // LSRS
@@ -158,7 +172,6 @@ int32_t execute_next(void)
         if (rc >= (1 << 31)) SET_BIT(FLG, FLG_N);
         else RESET_BIT(FLG, FLG_N);
 
-        fprintf(stderr, "LSRS r%u,r%u\n", rd, rm);
         return 0;
     }
     // ASRS
@@ -176,7 +189,6 @@ int32_t execute_next(void)
         if (rc < 0) SET_BIT(FLG, FLG_N);
         else RESET_BIT(FLG, FLG_N);
 
-        fprintf(stderr, "ASRS r%u,r%u\n", rd, rm);
         return 0;
     }
     // ADCS
@@ -200,7 +212,6 @@ int32_t execute_next(void)
         else if(ra < 0 && rb < 0 && rc > 0) SET_BIT(FLG, FLG_V);
         else RESET_BIT(FLG, FLG_V);
 
-        fprintf(stderr, "ADCS r%u,r%u\n", rd, rm);
         return 0;
     }
     // SBCS
@@ -220,7 +231,6 @@ int32_t execute_next(void)
 
         // TODO: Add the overflow and carry flag code
 
-        fprintf(stderr, "SBCS r%u,r%u\n", rd, rm);
         return 0;
     }
     // RORS
@@ -240,7 +250,6 @@ int32_t execute_next(void)
 
         // TODO: Add the carry flag code
 
-        fprintf(stderr, "RORS r%u,r%u\n", rd, rm);
         return 0;
     }
     // TSTS
@@ -258,10 +267,11 @@ int32_t execute_next(void)
         if (rc >= (1 << 31)) SET_BIT(FLG, FLG_N);
         else RESET_BIT(FLG, FLG_N);
 
-        fprintf(stderr, "TSTS r%u,r%u\n", rd, rm);
         return 0;
     }
-    // NEG !!!!!
+
+    // todo: NEG is same as MVN??
+    // NEG
     else if (GET_BITS(inst, 15, 10) == 0b0100'0010'01)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -275,8 +285,6 @@ int32_t execute_next(void)
         if (rc >= (1 << 31)) SET_BIT(FLG, FLG_N);
         else RESET_BIT(FLG, FLG_N);
         
-
-        fprintf(stderr, "NEG r%u,r%u\n", rd, rm);
         return 0;
     }
     // CMP
@@ -295,7 +303,6 @@ int32_t execute_next(void)
 
         // TODO: Add the overflow and carry flag code
         
-        fprintf(stderr, "CMP r%u,r%u\n", rd, rm);
         return 0;
     }
     // CMN
@@ -314,7 +321,6 @@ int32_t execute_next(void)
 
         // TODO: Add the overflow and carry flag code
         
-        fprintf(stderr, "CMN r%u,r%u\n", rd, rm);
         return 0;
     }
     // ORRS
@@ -332,7 +338,6 @@ int32_t execute_next(void)
         if (rc >= (1 << 31)) SET_BIT(FLG, FLG_N);
         else RESET_BIT(FLG, FLG_N);
 
-        fprintf(stderr, "ORRS r%u,r%u\n", rd, rm);
         return 0;
     }
     // BICS
@@ -350,7 +355,6 @@ int32_t execute_next(void)
         if (rc >= (1 << 31)) SET_BIT(FLG, FLG_N);
         else RESET_BIT(FLG, FLG_N);
 
-        fprintf(stderr, "BICS r%u,r%u\n", rd, rm);
         return 0;
     }
 
@@ -367,9 +371,7 @@ int32_t execute_next(void)
         else RESET_BIT(FLG, FLG_Z);
         if (rc >= (1 << 31)) SET_BIT(FLG, FLG_N);
         else RESET_BIT(FLG, FLG_N);
-        
 
-        fprintf(stderr, "MVNS r%u,r%u\n", rd, rm);
         return 0;
     }
     
