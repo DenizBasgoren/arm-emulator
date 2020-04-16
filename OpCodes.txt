@@ -11,3 +11,5 @@ CEM     ORRS and ANDS instructions
         All forms of LSLS, LSRS and ASRS instructions 
         MULS instruction 
  
+ldr/str ( ram oku yaz) kaldı. 
+jmp, call, ret kaldı.

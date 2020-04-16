@@ -628,8 +628,15 @@ int32_t execute_next(void)
 
         return 0;
     }
-
-
+    
+    // LDR
+    else if (GET_BITS(inst, 15, 5) == 0b01001)
+    {
+        uint8_t rd = GET_BITS(inst, 10, 3);
+        uint8_t immed = GET_BITS(inst, 7, 8);
+        
+        // cpu.reg[rd] = (int8_t)immed;
+    }
 
 
 
