@@ -5,3 +5,6 @@
 *.a
 SDL/**
 MinGW/**
+*.bin
+*.elf
+*.o

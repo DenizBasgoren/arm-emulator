@@ -50,7 +50,7 @@ tCPU cpu;
 
 int32_t execute_next(void);
 void update_nz_flags(int32_t reg);
-
+void debug_dialog();
 
 //Emulator main function
 int32_t main(int32_t argc, char* argv[])
@@ -106,11 +106,17 @@ int32_t execute_next(void)
     uint16_t inst = rom[PC - 2] | rom[PC - 1] << 8;
     PC += 2;
 
+    // DEBUG INSTRUCTION == 1101 1110 0000 0000
+    if (inst == 0x00de) {
+        debug_dialog();
+        return 0;
+    }
+
     // TODO: operands should be uint32_t or int32_t?
 
     // todo: check operator precedence: cast, >> 
     // LSL
-    if (GET_BITS(inst, 15, 5) == 0b00000) {
+    else if (GET_BITS(inst, 15, 5) == 0b00000) {
         uint8_t immed = GET_BITS(inst, 10, 5);
         uint8_t rm = GET_BITS(inst, 5, 3);
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -884,15 +890,84 @@ int32_t execute_next(void)
         SP = addr;
     }
 
+    // B, COND
+    else if (GET_BITS(inst, 15, 4) == 0b1101) {
+        uint8_t N = GET_BITS(FLG, FLG_N, 1);
+        uint8_t Z = GET_BITS(FLG, FLG_Z, 1);
+        uint8_t C = GET_BITS(FLG, FLG_C, 1);
+        uint8_t V = GET_BITS(FLG, FLG_V, 1);
+
+        uint8_t cond = GET_BITS(inst, 11, 4);
+        switch ( cond ) {
+            case 0:
+                if (Z == 1) goto branch;
+                break;
+            case 1:
+                if (Z == 0) goto branch;
+                break;
+            case 2:
+                if (C == 1) goto branch;
+                break;
+            case 3:
+                if (C == 0) goto branch;
+                break;
+            case 4:
+                if (N == 1) goto branch;
+                break;
+            case 5:
+                if (N == 0) goto branch;
+                break;
+            case 6:
+                if (V == 1) goto branch;
+                break;
+            case 7:
+                if (V == 0) goto branch;
+                break;
+            case 8:
+                if (C == 1 && Z == 0) goto branch;
+                break;
+            case 9:
+                if (C == 0 || Z == 1) goto branch;
+                break;
+            case 10:
+                if (N == V) goto branch;
+                break;
+            case 11:
+                if (N != V) goto branch;
+                break;
+            case 12:
+                if (Z == 0 && N == V) goto branch;
+                break;
+            case 13:
+                if (Z == 1 || N != V) goto branch;
+                break;
+        }
+
+        return 0;
+
+        branch:
+        if (1) { }
+        int8_t offset = GET_BITS(inst, 7, 8);
+        PC += offset * 2 + 4;
+        return 0;
+    }
+
+    // B, NOT COND
+    else if (GET_BITS(inst, 15, 5) == 0b11100) {
+        int16_t offset = GET_BITS(inst, 10, 11);
+        PC += offset * 2 + 4;
+        return 0;
+    }
+
+    
+
+    fprintf(stderr, "invalid instruction 0x%08X 0x%04X\n", PC - 4, inst);
+    return 1;
+}
 
 
-
-
-
-    // DEBUG INSTRUCTION == 1101 1110 0000 0000
-    else if (inst == 0xde00) {
-
-        printf("%c[2J%c[1;1H", 27, 27);
+void debug_dialog () {
+    printf("%c[2J%c[1;1H", 27, 27);
         printf("\n\nDebug instruction!\n");
         for (int i = 0; i<16; i++) {
             printf("R%d %s \t hex %x \n", i,
@@ -930,10 +1005,4 @@ int32_t execute_next(void)
 
             printf("\n");
         }
-        return 0;
-        
-    }
-
-    fprintf(stderr, "invalid instruction 0x%08X 0x%04X\n", PC - 4, inst);
-    return 1;
 }
