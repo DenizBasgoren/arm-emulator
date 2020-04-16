@@ -27,6 +27,16 @@
 #define FLG_C (29)
 #define FLG_V (28)
 
+#define ROM_MAX 0x1FFFFFFF
+#define ROM_MIN 0x00000000
+
+#define RAM_MAX 0x3FFFFFFF
+#define RAM_MIN 0x20000000
+
+#define PER_MAX 0x5FFFFFFF
+#define PER_MIN 0x40000000
+
+
 
 typedef struct {
     int32_t reg[16];
@@ -100,7 +110,7 @@ int32_t execute_next(void)
 
     // todo: check operator precedence: cast, >> 
     // LSL
-    if (GET_BITS(inst, 15, 5) == 0b0000'0) {
+    if (GET_BITS(inst, 15, 5) == 0b00000) {
         uint8_t immed = GET_BITS(inst, 10, 5);
         uint8_t rm = GET_BITS(inst, 5, 3);
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -114,7 +124,7 @@ int32_t execute_next(void)
     }
 
     // LSR
-    else if (GET_BITS(inst, 15, 5) == 0b0000'0) {
+    else if (GET_BITS(inst, 15, 5) == 0b00000) {
         uint8_t immed = GET_BITS(inst, 10, 5);
         uint8_t rm = GET_BITS(inst, 5, 3);
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -128,7 +138,7 @@ int32_t execute_next(void)
     }
 
     // ASR
-    else if (GET_BITS(inst, 15, 5) == 0b0001'0) {
+    else if (GET_BITS(inst, 15, 5) == 0b00010) {
         uint8_t immed = GET_BITS(inst, 10, 5);
         uint8_t rm = GET_BITS(inst, 5, 3);
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -142,7 +152,7 @@ int32_t execute_next(void)
     }
 
     // ADD
-    else if (GET_BITS(inst, 15, 7) == 0b0001'100) {
+    else if (GET_BITS(inst, 15, 7) == 0b0001100) {
         uint8_t rm = GET_BITS(inst, 8, 3);
         uint8_t rn = GET_BITS(inst, 5, 3);
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -158,7 +168,7 @@ int32_t execute_next(void)
     }
 
     // SUB
-    else if (GET_BITS(inst, 15, 7) == 0b0001'101) {
+    else if (GET_BITS(inst, 15, 7) == 0b0001101) {
         uint8_t rm = GET_BITS(inst, 8, 3);
         uint8_t rn = GET_BITS(inst, 5, 3);
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -174,7 +184,7 @@ int32_t execute_next(void)
     }
 
     // ADD
-    else if (GET_BITS(inst, 15, 7) == 0b0001'110) {
+    else if (GET_BITS(inst, 15, 7) == 0b0001110) {
         uint8_t immed = GET_BITS(inst, 8, 3);
         uint8_t rn = GET_BITS(inst, 5, 3);
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -189,7 +199,7 @@ int32_t execute_next(void)
     }
 
     // SUB
-    else if (GET_BITS(inst, 15, 7) == 0b0001'111) {
+    else if (GET_BITS(inst, 15, 7) == 0b0001111) {
         uint8_t immed = GET_BITS(inst, 8, 3);
         uint8_t rn = GET_BITS(inst, 5, 3);
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -204,7 +214,7 @@ int32_t execute_next(void)
     }
 
     // MOV
-    else if (GET_BITS(inst, 15, 5) == 0b0010'0) {
+    else if (GET_BITS(inst, 15, 5) == 0b00100) {
         uint8_t rd = GET_BITS(inst, 10, 3);
         uint8_t immed = GET_BITS(inst, 7, 8);
 
@@ -216,7 +226,7 @@ int32_t execute_next(void)
     }
 
     // CMP
-    else if (GET_BITS(inst, 15, 5) == 0b0010'1) {
+    else if (GET_BITS(inst, 15, 5) == 0b00101) {
         uint8_t rn = GET_BITS(inst, 10, 3);
         uint8_t immed = GET_BITS(inst, 7, 8);
 
@@ -228,7 +238,7 @@ int32_t execute_next(void)
     }
 
     // ADD
-    else if (GET_BITS(inst, 15, 5) == 0b0011'0) {
+    else if (GET_BITS(inst, 15, 5) == 0b00110) {
         uint8_t rd = GET_BITS(inst, 10, 3);
         uint8_t immed = GET_BITS(inst, 7, 8);
 
@@ -242,7 +252,7 @@ int32_t execute_next(void)
     }
 
     // SUB
-    else if (GET_BITS(inst, 15, 5) == 0b0011'1) {
+    else if (GET_BITS(inst, 15, 5) == 0b00111) {
         uint8_t rd = GET_BITS(inst, 10, 3);
         uint8_t immed = GET_BITS(inst, 7, 8);
 
@@ -256,7 +266,7 @@ int32_t execute_next(void)
     }
 
     // ANDS
-    else if (GET_BITS(inst, 15, 10) == 0b0100'0000'00)
+    else if (GET_BITS(inst, 15, 10) == 0b0100000000)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
@@ -271,7 +281,7 @@ int32_t execute_next(void)
         return 0;
     }
     // EORS
-    else if (GET_BITS(inst, 15, 10) == 0b0100'0000'01)
+    else if (GET_BITS(inst, 15, 10) == 0b0100000001)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
@@ -284,7 +294,7 @@ int32_t execute_next(void)
         return 0;
     }
     // LSLS
-    else if (GET_BITS(inst, 15, 10) == 0b0100'0000'10)
+    else if (GET_BITS(inst, 15, 10) == 0b0100000010)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
@@ -297,7 +307,7 @@ int32_t execute_next(void)
         return 0;
     }
     // LSRS
-    else if (GET_BITS(inst, 15, 10) == 0b0100'0000'11)
+    else if (GET_BITS(inst, 15, 10) == 0b0100000011)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
@@ -310,7 +320,7 @@ int32_t execute_next(void)
         return 0;
     }
     // ASRS
-    else if (GET_BITS(inst, 15, 10) == 0b0100'0001'00)
+    else if (GET_BITS(inst, 15, 10) == 0b0100000100)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
@@ -323,7 +333,7 @@ int32_t execute_next(void)
         return 0;
     }
     // ADCS
-    else if (GET_BITS(inst, 15, 10) == 0b0100'0001'01)
+    else if (GET_BITS(inst, 15, 10) == 0b0100000101)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
@@ -342,7 +352,7 @@ int32_t execute_next(void)
         return 0;
     }
     // SBCS
-    else if (GET_BITS(inst, 15, 10) == 0b0100'0001'10)
+    else if (GET_BITS(inst, 15, 10) == 0b0100000110)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
@@ -357,7 +367,7 @@ int32_t execute_next(void)
         return 0;
     }
     // RORS
-    else if (GET_BITS(inst, 15, 10) == 0b0100'0001'11)
+    else if (GET_BITS(inst, 15, 10) == 0b0100000111)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
@@ -372,7 +382,7 @@ int32_t execute_next(void)
         return 0;
     }
     // TSTS
-    else if (GET_BITS(inst, 15, 10) == 0b0100'0010'00)
+    else if (GET_BITS(inst, 15, 10) == 0b0100001000)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
@@ -387,7 +397,7 @@ int32_t execute_next(void)
 
     // todo: NEG is same as MVN??
     // NEG
-    else if (GET_BITS(inst, 15, 10) == 0b0100'0010'01)
+    else if (GET_BITS(inst, 15, 10) == 0b0100001001)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
@@ -399,7 +409,7 @@ int32_t execute_next(void)
         return 0;
     }
     // CMP
-    else if (GET_BITS(inst, 15, 10) == 0b0100'0010'10)
+    else if (GET_BITS(inst, 15, 10) == 0b0100001010)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
@@ -413,7 +423,7 @@ int32_t execute_next(void)
         return 0;
     }
     // CMN
-    else if (GET_BITS(inst, 15, 10) == 0b0100'0010'11)
+    else if (GET_BITS(inst, 15, 10) == 0b0100001011)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
@@ -427,7 +437,7 @@ int32_t execute_next(void)
         return 0;
     }
     // ORRS
-    else if (GET_BITS(inst, 15, 10) == 0b0100'0011'00)
+    else if (GET_BITS(inst, 15, 10) == 0b0100001100)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
@@ -439,8 +449,21 @@ int32_t execute_next(void)
         update_nz_flags(rc);
         return 0;
     }
+    // MUL
+    else if (GET_BITS(inst, 15, 10) == 0b0100001101)
+    {
+        uint8_t rd = GET_BITS(inst, 2, 3);
+        uint8_t rm = GET_BITS(inst, 5, 3);
+        uint32_t ra = cpu.reg[rd];
+        uint32_t rb = cpu.reg[rm];
+        uint32_t rc = ra * rb;
+        cpu.reg[rd] = rc;
+        
+        update_nz_flags(rc);
+        return 0;
+    }
     // BICS
-    else if (GET_BITS(inst, 15, 10) == 0b0100'0011'10)
+    else if (GET_BITS(inst, 15, 10) == 0b0100001110)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
@@ -454,7 +477,7 @@ int32_t execute_next(void)
     }
 
     // MVNS
-    else if (GET_BITS(inst, 15, 10) == 0b0100'0011'11)
+    else if (GET_BITS(inst, 15, 10) == 0b0100001111)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
@@ -467,7 +490,7 @@ int32_t execute_next(void)
     }
 
     // CPY // ???????
-    else if (GET_BITS(inst, 15, 10) == 0b0100'0110'00)
+    else if (GET_BITS(inst, 15, 10) == 0b0100011000)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
@@ -480,7 +503,7 @@ int32_t execute_next(void)
     }
 
     // ADD
-    else if (GET_BITS(inst, 15, 10) == 0b0100'0100'01)
+    else if (GET_BITS(inst, 15, 10) == 0b0100010001)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
@@ -497,7 +520,7 @@ int32_t execute_next(void)
     }
 
     // MOV
-    else if (GET_BITS(inst, 15, 10) == 0b0100'0110'01)
+    else if (GET_BITS(inst, 15, 10) == 0b0100011001)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
@@ -514,7 +537,7 @@ int32_t execute_next(void)
     }
 
     // ADD
-    else if (GET_BITS(inst, 15, 10) == 0b0100'0100'10)
+    else if (GET_BITS(inst, 15, 10) == 0b0100010010)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
@@ -531,7 +554,7 @@ int32_t execute_next(void)
     }
 
     // MOV
-    else if (GET_BITS(inst, 15, 10) == 0b0100'0110'10)
+    else if (GET_BITS(inst, 15, 10) == 0b0100011010)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
@@ -548,7 +571,7 @@ int32_t execute_next(void)
     }
 
     // ADD
-    else if (GET_BITS(inst, 15, 10) == 0b0100'0100'11)
+    else if (GET_BITS(inst, 15, 10) == 0b0100010011)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
@@ -565,7 +588,7 @@ int32_t execute_next(void)
     }
 
     // MOV
-    else if (GET_BITS(inst, 15, 10) == 0b0100'0110'11)
+    else if (GET_BITS(inst, 15, 10) == 0b0100011011)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
@@ -582,7 +605,7 @@ int32_t execute_next(void)
     }
 
     // CMP
-    else if (GET_BITS(inst, 15, 10) == 0b0100'0101'01)
+    else if (GET_BITS(inst, 15, 10) == 0b0100010101)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
@@ -598,7 +621,7 @@ int32_t execute_next(void)
     }
 
     // CMP
-    else if (GET_BITS(inst, 15, 10) == 0b0100'0101'10)
+    else if (GET_BITS(inst, 15, 10) == 0b0100010110)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
@@ -614,7 +637,7 @@ int32_t execute_next(void)
     }
 
     // CMP
-    else if (GET_BITS(inst, 15, 10) == 0b0100'0101'11)
+    else if (GET_BITS(inst, 15, 10) == 0b0100010111)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
@@ -629,18 +652,238 @@ int32_t execute_next(void)
         return 0;
     }
     
+    // BX
+    else if(GET_BITS(inst, 15, 9) == 0b010001110){
+        uint8_t rm = GET_BITS(inst, 6, 4);
+        PC = cpu.reg[rm];
+
+        return 0;
+    }
+
+    // BLX
+    else if(GET_BITS(inst, 15, 9) == 0b010001111){
+        uint8_t rm = GET_BITS(inst, 6, 4);
+        LR = PC;
+        PC += cpu.reg[rm];
+
+        return 0;
+    }
+
     // LDR
     else if (GET_BITS(inst, 15, 5) == 0b01001)
     {
         uint8_t rd = GET_BITS(inst, 10, 3);
         uint8_t immed = GET_BITS(inst, 7, 8);
         
-        // cpu.reg[rd] = (int8_t)immed;
+        cpu.reg[rd] = rom[PC + 4 * immed];
+
+        return 0;
     }
 
+    // STR
+    else if (GET_BITS(inst, 15, 7) == 0b0101000)
+    {
+        uint8_t rm = GET_BITS(inst, 8, 3);
+        uint8_t rn = GET_BITS(inst, 5, 3);
+        uint8_t rd = GET_BITS(inst, 2, 3);
 
+        uint32_t addr = cpu.reg[rm] + cpu.reg[rn];
 
-    
+        if(addr >= ROM_MIN && addr <= ROM_MAX)
+            rom[addr - ROM_MIN] = cpu.reg[rd];
+        else if(addr >= RAM_MIN && addr <= RAM_MAX)
+            ram[addr - RAM_MIN] = cpu.reg[rd];
+        else if(addr >= PER_MIN && addr <= PER_MAX)
+            return peripheral_write(addr, cpu.reg[rd]);
+
+        return 0;
+    }
+
+    // LDR
+    else if (GET_BITS(inst, 15, 7) == 0b0101100)
+    {
+        uint8_t rm = GET_BITS(inst, 8, 3);
+        uint8_t rn = GET_BITS(inst, 5, 3);
+        uint8_t rd = GET_BITS(inst, 2, 3);
+
+        uint32_t addr = cpu.reg[rm] + cpu.reg[rn];
+
+        if(addr >= ROM_MIN && addr <= ROM_MAX)
+            cpu.reg[rd] = rom[addr - ROM_MIN];
+        else if(addr >= RAM_MIN && addr <= RAM_MAX)
+            cpu.reg[rd] = ram[addr - RAM_MIN];
+        else if(addr >= PER_MIN && addr <= PER_MAX)
+            return peripheral_read(addr, &cpu.reg[rd]);
+
+        return 0;
+    }
+
+    // STR
+    else if (GET_BITS(inst, 15, 5) == 0b01100)
+    {
+        uint8_t immed = GET_BITS(inst, 10, 5);
+        uint8_t rn = GET_BITS(inst, 5, 3);
+        uint8_t rd = GET_BITS(inst, 2, 3);
+
+        uint32_t addr = cpu.reg[rn] + 4 * immed;
+
+        if(addr >= ROM_MIN && addr <= ROM_MAX)
+            rom[addr - ROM_MIN] = cpu.reg[rd];
+        else if(addr >= RAM_MIN && addr <= RAM_MAX)
+            ram[addr - RAM_MIN] = cpu.reg[rd];
+        else if(addr >= PER_MIN && addr <= PER_MAX)
+            return peripheral_write(addr, cpu.reg[rd]);
+
+        return 0;
+    }
+
+    // LDR
+    else if (GET_BITS(inst, 15, 5) == 0b01101)
+    {
+        uint8_t immed = GET_BITS(inst, 10, 5);
+        uint8_t rn = GET_BITS(inst, 5, 3);
+        uint8_t rd = GET_BITS(inst, 2, 3);
+
+        uint32_t addr = cpu.reg[rn] + 4 * immed;
+
+        if(addr >= ROM_MIN && addr <= ROM_MAX)
+            cpu.reg[rd] = rom[addr - ROM_MIN];
+        else if(addr >= RAM_MIN && addr <= RAM_MAX)
+            cpu.reg[rd] = ram[addr - RAM_MIN];
+        else if(addr >= PER_MIN && addr <= PER_MAX)
+            return peripheral_read(addr, &cpu.reg[rd]);
+
+        return 0;
+    }
+
+    // STR
+    else if (GET_BITS(inst, 15, 5) == 0b10010)
+    {
+        uint8_t rd = GET_BITS(inst, 10, 3);
+        uint8_t immed = GET_BITS(inst, 7, 8);
+
+        uint32_t addr = SP + 4 * immed;
+
+        if(addr >= ROM_MIN && addr <= ROM_MAX)
+            rom[addr - ROM_MIN] = cpu.reg[rd];
+        else if(addr >= RAM_MIN && addr <= RAM_MAX)
+            ram[addr - RAM_MIN] = cpu.reg[rd];
+        else if(addr >= PER_MIN && addr <= PER_MAX)
+            return peripheral_write(addr, cpu.reg[rd]);
+
+        return 0;
+    }
+
+    // LDR
+    else if (GET_BITS(inst, 15, 5) == 0b10011)
+    {
+        uint8_t rd = GET_BITS(inst, 10, 3);
+        uint8_t immed = GET_BITS(inst, 7, 8);
+
+        uint32_t addr = SP + 4 * immed;
+
+        if(addr >= ROM_MIN && addr <= ROM_MAX)
+            cpu.reg[rd] = rom[addr - ROM_MIN];
+        else if(addr >= RAM_MIN && addr <= RAM_MAX)
+            cpu.reg[rd] = ram[addr - RAM_MIN];
+        else if(addr >= PER_MIN && addr <= PER_MAX)
+            return peripheral_read(addr, &cpu.reg[rd]);
+
+        return 0;
+    }
+
+    // ADD
+    else if (GET_BITS(inst, 15, 5) == 0b10100)
+    {
+        uint8_t rd = GET_BITS(inst, 10, 3);
+        uint8_t immed = GET_BITS(inst, 7, 8);
+
+        cpu.reg[rd] = PC + immed * 4;
+
+        update_nz_flags(cpu.reg[rd]);
+
+        return 0;
+    }
+
+    // ADD
+    else if (GET_BITS(inst, 15, 5) == 0b10101)
+    {
+        uint8_t rd = GET_BITS(inst, 10, 3);
+        uint8_t immed = GET_BITS(inst, 7, 8);
+
+        cpu.reg[rd] = SP + immed * 4;
+
+        update_nz_flags(cpu.reg[rd]);
+
+        return 0;
+    }
+
+    // ADD
+    else if (GET_BITS(inst, 15, 9) == 0b101100000)
+    {
+        uint8_t immed = GET_BITS(inst, 6, 7);
+
+        SP = SP + immed * 4;
+
+        update_nz_flags(SP);
+
+        return 0;
+    }
+
+    // SUB
+    else if (GET_BITS(inst, 15, 9) == 0b101100001)
+    {
+        uint8_t immed = GET_BITS(inst, 6, 7);
+
+        SP = SP - immed * 4;
+
+        update_nz_flags(SP);
+
+        return 0;
+    }
+
+    // PUSH
+    else if (GET_BITS(inst, 15, 7) == 0b1011010)
+    {
+        uint8_t r = GET_BITS(inst, 8, 1);
+        uint8_t list = GET_BITS(inst, 7, 8);
+        uint32_t addr = SP;
+
+        if(r == 1){
+            addr -= 4;
+            ram[addr] = LR;
+        }
+        for(int i = 7; i >= 0; i--){
+            if((list & (1 << i)) != 0){
+                addr -= 4;
+                ram[addr] = cpu.reg[i];
+            }
+        }
+
+        SP = addr;
+    }
+
+    // POP
+    else if (GET_BITS(inst, 15, 7) == 0b1011110)
+    {
+        uint8_t r = GET_BITS(inst, 8, 1);
+        uint8_t list = GET_BITS(inst, 7, 8);
+        uint32_t addr = SP;
+
+        for(int i = 0; i < 8; i++){
+            if((list & (1 << i)) != 0){
+                ram[addr] = cpu.reg[i];
+                addr += 4;
+            }
+        }
+        if(r == 1){
+            ram[addr] = PC;
+            addr += 4;
+        }
+
+        SP = addr;
+    }
+
     fprintf(stderr, "invalid instruction 0x%08X 0x%04X\n", PC - 4, inst);
     return 1;
 }

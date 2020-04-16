@@ -1,5 +1,6 @@
 {
     "files.associations": {
-        "emulib.h": "c"
+        "emulib.h": "c",
+        "stdio.h": "c"
     }
 }
