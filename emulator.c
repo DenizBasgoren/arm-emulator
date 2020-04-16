@@ -884,6 +884,56 @@ int32_t execute_next(void)
         SP = addr;
     }
 
+
+
+
+
+
+    // DEBUG INSTRUCTION == 1101 1110 0000 0000
+    else if (inst == 0xde00) {
+
+        printf("%c[2J%c[1;1H", 27, 27);
+        printf("\n\nDebug instruction!\n");
+        for (int i = 0; i<16; i++) {
+            printf("R%d %s \t hex %x \n", i,
+            i == 13 ? "(SP)" :
+            i == 14 ? "(LR)" :
+            i == 15 ? "(PC)" : "",
+            cpu.reg[i]
+            );
+        }
+
+        uint32_t from, to;
+        while(1) {
+            printf("%c[2J%c[1;1H", 27, 27);
+            puts("\n\nPrint memory from xxxxxxxx to xxxxxxxx (hex)");
+            puts("To exit type 0-0");
+            puts("eg. \"12fa0257-13000000\" ");
+
+            scanf("%x-%x", &from, &to );
+            printf("Memory %x - %x (inclusive): (%d bytes)\n", from, to, to-from+1);
+
+            if (from == 0 && to == 0 ) break;
+            if (from < ROM_MAX) {
+                for (; from <= to; from++) {
+                    printf("%x ", rom[from] );
+                }
+            }
+            else if (from < RAM_MAX) {
+                for(; from <= to; from++) {
+                    printf("%x ", ram[from - RAM_MIN]);
+                }
+            }
+            else { // ???
+                printf("instruction unclear");
+            }
+
+            printf("\n");
+        }
+        return 0;
+        
+    }
+
     fprintf(stderr, "invalid instruction 0x%08X 0x%04X\n", PC - 4, inst);
     return 1;
 }
