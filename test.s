@@ -1,7 +1,5 @@
-
 initial_sp:	.word	0x10000
 reset_vector: .word _main
-
 
 _main:	ldr		r0, =0x40010000       //LCD row register
                                       //0x40010004 LCD column register
@@ -9,9 +7,9 @@ _main:	ldr		r0, =0x40010000       //LCD row register
 		                              //0x4001000C LCD refresh register
 		                              //0x40010010 LCD clean register				
 		
-		.hword 56832					// debug
+		// .hword 56832					// debug
 		movs	r2, #0                //initialize row counter
-		.hword 56832					// debug
+		// .hword 56832					// debug
 
 		movs	r3, #0	              //initialize column counter		
 		ldr     r4, =#320             //max column count		

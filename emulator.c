@@ -69,7 +69,13 @@ int32_t main(int32_t argc, char* argv[])
     {
         return(1);
     }
-    
+
+    for(int i = 0; i < 128; i+=2)
+    {
+        uint16_t inst = rom[i] | rom[i + 1] << 8;
+        printf("instruction 0x%08X 0x%04X\n", i, inst);
+    }
+
     memset(ram, 0xFF, sizeof(ram));
 
     cpu.cpsr = 0;
@@ -102,13 +108,14 @@ void update_nz_flags(int32_t reg) {
 //Fetches an instruction from ROM, decodes and executes it
 int32_t execute_next(void)
 {
-
     uint16_t inst = rom[PC - 2] | rom[PC - 1] << 8;
     PC += 2;
+    
+    printf("instruction 0x%08X 0x%04X\n", PC - 4, inst);
 
     // DEBUG INSTRUCTION == 1101 1110 0000 0000
-    if (inst == 0x00de) {
-        debug_dialog();
+    if (inst == 0xde00) {
+        // debug_dialog();
         return 0;
     }
 
@@ -891,75 +898,107 @@ int32_t execute_next(void)
     }
 
     // B, COND
-    else if (GET_BITS(inst, 15, 4) == 0b1101) {
+    else if (GET_BITS(inst, 15, 4) == 0b1101 && GET_BITS(inst, 11, 4) < 0b1110) {
         uint8_t N = GET_BITS(FLG, FLG_N, 1);
         uint8_t Z = GET_BITS(FLG, FLG_Z, 1);
         uint8_t C = GET_BITS(FLG, FLG_C, 1);
         uint8_t V = GET_BITS(FLG, FLG_V, 1);
 
         uint8_t cond = GET_BITS(inst, 11, 4);
+        int should_branch = 0;
         switch ( cond ) {
             case 0:
-                if (Z == 1) goto branch;
+                if (Z == 1) should_branch = 1;
                 break;
             case 1:
-                if (Z == 0) goto branch;
+                if (Z == 0) should_branch = 1;
                 break;
             case 2:
-                if (C == 1) goto branch;
+                if (C == 1) should_branch = 1;
                 break;
             case 3:
-                if (C == 0) goto branch;
+                if (C == 0) should_branch = 1;
                 break;
             case 4:
-                if (N == 1) goto branch;
+                if (N == 1) should_branch = 1;
                 break;
             case 5:
-                if (N == 0) goto branch;
+                if (N == 0) should_branch = 1;
                 break;
             case 6:
-                if (V == 1) goto branch;
+                if (V == 1) should_branch = 1;
                 break;
             case 7:
-                if (V == 0) goto branch;
+                if (V == 0) should_branch = 1;
                 break;
             case 8:
-                if (C == 1 && Z == 0) goto branch;
+                if (C == 1 && Z == 0) should_branch = 1;
                 break;
             case 9:
-                if (C == 0 || Z == 1) goto branch;
+                if (C == 0 || Z == 1) should_branch = 1;
                 break;
             case 10:
-                if (N == V) goto branch;
+                if (N == V) should_branch = 1;
                 break;
             case 11:
-                if (N != V) goto branch;
+                if (N != V) should_branch = 1;
                 break;
             case 12:
-                if (Z == 0 && N == V) goto branch;
+                if (Z == 0 && N == V) should_branch = 1;
                 break;
             case 13:
-                if (Z == 1 || N != V) goto branch;
+                if (Z == 1 || N != V) should_branch = 1;
                 break;
         }
 
-        return 0;
-
-        branch:
-        if (1) { }
-        int8_t offset = GET_BITS(inst, 7, 8);
-        PC += offset * 2 + 4;
+        if (should_branch == 1) {
+            int8_t offset = GET_BITS(inst, 7, 8);
+            PC += offset * 2 + 2;
+        }
         return 0;
     }
 
-    // B, NOT COND
+    // B, NO-COND
     else if (GET_BITS(inst, 15, 5) == 0b11100) {
         int16_t offset = GET_BITS(inst, 10, 11);
-        PC += offset * 2 + 4;
+        PC += offset * 2 + 2;
         return 0;
     }
 
+    // BLX
+    else if(GET_BITS(inst, 15, 5) == 0b11101) {
+        uint16_t offset = GET_BITS(inst, 10, 10);
+
+        uint16_t prev_inst = rom[PC - 6] | rom[PC - 5] << 8;
+        if(GET_BITS(prev_inst, 15, 5) != 0b11110){
+            fprintf(stderr, "BLX: previous instruction is not a branch prefix instruction 0x%08X  0x%04X\n", PC - 4, prev_inst);
+            return 1;
+        }
+
+        int16_t poff = GET_BITS(prev_inst, 10, 11);
+        LR = PC;
+        PC = (PC + 2 + (poff<<12) + offset*4) & ~3;
+        return 0;
+    }
     
+    // BL
+    else if(GET_BITS(inst, 15, 5) == 0b11111) {
+        uint16_t offset = GET_BITS(inst, 10, 11);
+
+        uint16_t prev_inst = rom[PC - 6] | rom[PC - 1] << 8;
+        // if(GET_BITS(prev_inst, 15, 5) != 0b11110){
+        //     return 1;
+        //     // fprintf(stderr, "BL: previous instruction is not a branch prefix instruction 0x%08X  0x%04X 0x%04X\n", PC - 4, prev_inst, inst);
+        //     // return 1;
+        // }
+
+        int16_t poff = GET_BITS(prev_inst, 10, 11);
+        LR = PC;
+        PC += 2 + (poff<<12) + offset*2;
+        return 0;
+    }
+
+
 
     fprintf(stderr, "invalid instruction 0x%08X 0x%04X\n", PC - 4, inst);
     return 1;
