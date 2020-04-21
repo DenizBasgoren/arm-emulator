@@ -6,19 +6,19 @@ _main:	ldr		r0, =0x40010000       //LCD row register
 		                              //0x40010008 LCD color register
 		                              //0x4001000C LCD refresh register
 		                              //0x40010010 LCD clean register				
-		
-		// .hword 56832					// debug
+
 		movs	r2, #0                //initialize row counter
-		// .hword 56832					// debug
 
 		movs	r3, #0	              //initialize column counter		
-		ldr     r4, =#320             //max column count		
+		ldr     r4, =#320             //max column count	
+		.hword 56832	
         movs    r6, #0
 		movs    r7, #0
 		str		r2, [r0]              //update row register with first row count
 		str     r3, [r0, #0x4]        //update column register with first column count
 		
-paint:	str     r1, [r0, #0x8]        //write the color to screen at current row and column using color register
+paint:	
+		str     r1, [r0, #0x8]        //write the color to screen at current row and column using color register
 		add     r3, r3, #1            //increment the column counter		
 		cmp     r3, r4                //check if we have reached the end of current row
 		bne     nc
@@ -43,5 +43,5 @@ label2:	ldr     r1, =0xff000000       //base color (fully opaque black in ARGB f
 		orr     r1, r5            //change the color by r6
 		str     r0, [r0, #0xC]        //refresh the screen
 nr:     str     r2, [r0]		      //update the row register
-nc:		str     r3, [r0, #0x4]        //update the column register		
+nc:		str     r3, [r0, #0x4]        //update the column register	
 		b       paint

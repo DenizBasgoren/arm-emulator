@@ -115,7 +115,7 @@ int32_t execute_next(void)
 
     // DEBUG INSTRUCTION == 1101 1110 0000 0000
     if (inst == 0xde00) {
-        // debug_dialog();
+        debug_dialog();
         return 0;
     }
 
@@ -688,8 +688,8 @@ int32_t execute_next(void)
         uint8_t rd = GET_BITS(inst, 10, 3);
         uint8_t immed = GET_BITS(inst, 7, 8);
         
-        cpu.reg[rd] = rom[PC + 4 * immed];
-
+        cpu.reg[rd] = *(uint32_t*)(rom + PC + 4 * immed);
+        printf("%d -> %X, %x\n", rd, cpu.reg[rd], PC + 4 * immed);
         return 0;
     }
 
@@ -738,14 +738,14 @@ int32_t execute_next(void)
         uint8_t rn = GET_BITS(inst, 5, 3);
         uint8_t rd = GET_BITS(inst, 2, 3);
 
-        uint32_t addr = cpu.reg[rn] + 4 * immed;
+        uint32_t addr = cpu.reg[rd];
 
         if(addr >= ROM_MIN && addr <= ROM_MAX)
-            rom[addr - ROM_MIN] = cpu.reg[rd];
+            rom[addr - ROM_MIN] = cpu.reg[rn] + 4 * immed;
         else if(addr >= RAM_MIN && addr <= RAM_MAX)
-            ram[addr - RAM_MIN] = cpu.reg[rd];
+            ram[addr - RAM_MIN] = cpu.reg[rn] + 4 * immed;
         else if(addr >= PER_MIN && addr <= PER_MAX)
-            return peripheral_write(addr, cpu.reg[rd]);
+            return peripheral_write(addr, cpu.reg[rn] + 4 * immed);
 
         return 0;
     }
@@ -757,7 +757,7 @@ int32_t execute_next(void)
         uint8_t rn = GET_BITS(inst, 5, 3);
         uint8_t rd = GET_BITS(inst, 2, 3);
 
-        uint32_t addr = cpu.reg[rn] + 4 * immed;
+        uint32_t addr = cpu.reg[rn] + 4 * immed + 2;
 
         if(addr >= ROM_MIN && addr <= ROM_MAX)
             cpu.reg[rd] = rom[addr - ROM_MIN];
@@ -961,6 +961,10 @@ int32_t execute_next(void)
     // B, NO-COND
     else if (GET_BITS(inst, 15, 5) == 0b11100) {
         int16_t offset = GET_BITS(inst, 10, 11);
+        if(GET_BITS(inst, 10, 1) == 1){
+            offset <<= 5;
+            offset >>= 5;
+        }
         PC += offset * 2 + 2;
         return 0;
     }
