@@ -3,7 +3,7 @@
 // start (in order of documentation), offset ( number of bits from start to direction of 0)
 #define GET_BITS(bits, start, offset) (((bits) >> ((start) - (offset) + 1)) & ((1 << (offset)) - 1))
 #define SET_BIT(bits, n) ((bits) |= (1 << (n)))
-#define RESET_BIT(a,b) ((a) &= ~(1ULL<<(b)))
+#define RESET_BIT(bits,b) ((bits) &= ~(1ULL<<(b)))
 
 #define R0  (cpu.reg[ 0])
 #define R1  (cpu.reg[ 1])
@@ -70,11 +70,11 @@ int32_t main(int32_t argc, char* argv[])
         return(1);
     }
 
-    for(int i = 0; i < 128; i+=2)
-    {
-        uint16_t inst = rom[i] | rom[i + 1] << 8;
-        printf("instruction 0x%08X 0x%04X\n", i, inst);
-    }
+    // for(int i = 0; i < 128; i+=2)
+    // {
+    //     uint16_t inst = rom[i] | rom[i + 1] << 8;
+    //     printf("instruction 0x%08X 0x%04X\n", i, inst);
+    // }
 
     memset(ram, 0xFF, sizeof(ram));
 
@@ -111,7 +111,7 @@ int32_t execute_next(void)
     uint16_t inst = rom[PC - 2] | rom[PC - 1] << 8;
     PC += 2;
     
-    printf("instruction 0x%08X 0x%04X\n", PC - 4, inst);
+    // printf("instruction 0x%08X 0x%04X\n", PC - 4, inst);
 
     // DEBUG INSTRUCTION == 1101 1110 0000 0000
     if (inst == 0xde00) {
@@ -177,6 +177,9 @@ int32_t execute_next(void)
 
         update_nz_flags(rc);
         // todo: impl carry, overflo, conditions..
+        if ( 0xFFFFFFFF - ra < rb ) SET_BIT(FLG, FLG_C);
+        else RESET_BIT(FLG, FLG_C);
+
         return 0;
     }
 
@@ -193,6 +196,10 @@ int32_t execute_next(void)
 
         update_nz_flags(rc);
         // todo: impl carry, overflo, conditions..
+
+        if ( ra - rb < 0) SET_BIT(FLG, FLG_C);
+        RESET_BIT(FLG, FLG_C);
+
         return 0;
     }
 
@@ -208,6 +215,10 @@ int32_t execute_next(void)
 
         update_nz_flags(rc);
         // todo: impl carry, overflo, conditions..
+
+        if ( 0xFFFFFFFF - ra < immed ) SET_BIT(FLG, FLG_C);
+        else RESET_BIT(FLG, FLG_C);
+
         return 0;
     }
 
@@ -223,6 +234,10 @@ int32_t execute_next(void)
 
         update_nz_flags(rc);
         // todo: impl carry, overflo, conditions..
+
+        if ( ra - immed < 0) SET_BIT(FLG, FLG_C);
+        RESET_BIT(FLG, FLG_C);
+
         return 0;
     }
 
@@ -243,10 +258,15 @@ int32_t execute_next(void)
         uint8_t rn = GET_BITS(inst, 10, 3);
         uint8_t immed = GET_BITS(inst, 7, 8);
 
-        uint32_t dif = cpu.reg[rn] - immed;
+        uint32_t ra = cpu.reg[rn];
+        uint32_t dif = ra - immed;
 
         update_nz_flags(dif);
         // todo: impl carry, overflo, conditions..
+
+        if ( ra - immed < 0) SET_BIT(FLG, FLG_C);
+        RESET_BIT(FLG, FLG_C);
+
         return 0;
     }
 
@@ -261,6 +281,10 @@ int32_t execute_next(void)
         cpu.reg[rd] = ra;
         update_nz_flags(ra);
         // todo: impl carry, overflo, conditions..
+
+        if ( 0xFFFFFFFF - ra < immed ) SET_BIT(FLG, FLG_C);
+        else RESET_BIT(FLG, FLG_C);
+
         return 0;
     }
 
@@ -275,6 +299,10 @@ int32_t execute_next(void)
         cpu.reg[rd] = ra;
         update_nz_flags(ra);
         // todo: impl carry, overflo, conditions..
+
+        if ( ra - immed < 0) SET_BIT(FLG, FLG_C);
+        RESET_BIT(FLG, FLG_C);
+
         return 0;
     }
 
@@ -350,13 +378,17 @@ int32_t execute_next(void)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
-        int32_t ra = cpu.reg[rd];
-        int32_t rb = cpu.reg[rm];
-        int32_t rc = ra + rb;
-        cpu.reg[rd] = rc + GET_BITS(FLG, FLG_C, 1);
+        uint32_t ra = cpu.reg[rd];
+        uint32_t rb = cpu.reg[rm];
+        uint32_t rc = ra + rb;
+        int carry = GET_BITS(FLG, FLG_C, 1);
+        cpu.reg[rd] = rc + carry;
         
         update_nz_flags(rc);
         // TODO: Add the carry flag code
+
+        if ( 0xFFFFFFFF - ra < rb + carry ) SET_BIT(FLG, FLG_C);
+        else RESET_BIT(FLG, FLG_C);
 
         if(ra > 0 && rb > 0 && rc < 0) SET_BIT(FLG, FLG_V);
         else if(ra < 0 && rb < 0 && rc > 0) SET_BIT(FLG, FLG_V);
@@ -369,13 +401,18 @@ int32_t execute_next(void)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
-        int32_t ra = cpu.reg[rd];
-        int32_t rb = cpu.reg[rm];
-        int32_t rc = rb - ra;
-        cpu.reg[rd] = rc - GET_BITS(FLG, FLG_C, 1);
+        uint32_t ra = cpu.reg[rd];
+        uint32_t rb = cpu.reg[rm];
+        uint32_t rc = rb - ra;
+        int carry = GET_BITS(FLG, FLG_C, 1);
+
+        cpu.reg[rd] = rc - carry;
         
         update_nz_flags(rc);
         // TODO: Add the overflow and carry flag code
+
+        if ( ra - rb - carry < 0) SET_BIT(FLG, FLG_C);
+        RESET_BIT(FLG, FLG_C);
 
         return 0;
     }
@@ -426,12 +463,16 @@ int32_t execute_next(void)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
-        int32_t ra = cpu.reg[rd];
-        int32_t rb = cpu.reg[rm];
-        int32_t rc = ra - rb;
+        uint32_t ra = cpu.reg[rd];
+        uint32_t rb = cpu.reg[rm];
+        uint32_t rc = ra - rb;
         
         update_nz_flags(rc);
         // TODO: Add the overflow and carry flag code
+
+        // note: prev carry shouldnt be considered here
+        if ( ra - rb < 0) SET_BIT(FLG, FLG_C);
+        RESET_BIT(FLG, FLG_C);
         
         return 0;
     }
@@ -440,12 +481,15 @@ int32_t execute_next(void)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
-        int32_t ra = cpu.reg[rd];
-        int32_t rb = cpu.reg[rm];
-        int32_t rc = ra + rb;
+        uint32_t ra = cpu.reg[rd];
+        uint32_t rb = cpu.reg[rm];
+        uint32_t rc = ra + rb;
         
         update_nz_flags(rc);
         // TODO: Add the overflow and carry flag code
+
+        if ( 0xFFFFFFFF - ra < rb ) SET_BIT(FLG, FLG_C);
+        else RESET_BIT(FLG, FLG_C);
         
         return 0;
     }
@@ -505,13 +549,6 @@ int32_t execute_next(void)
     // CPY // ???????
     else if (GET_BITS(inst, 15, 10) == 0b0100011000)
     {
-        uint8_t rd = GET_BITS(inst, 2, 3);
-        uint8_t rm = GET_BITS(inst, 5, 3);
-        uint32_t ra = cpu.reg[rm];
-        cpu.reg[rd] = ra;
-        
-        update_nz_flags(ra);
-        // TODO; CARRY, V FLAGS
         return 0;
     }
 
@@ -528,6 +565,9 @@ int32_t execute_next(void)
         
         update_nz_flags(ra);
         // TODO; CARRY, V FLAGS
+
+        if ( 0xFFFFFFFF - ra < rb ) SET_BIT(FLG, FLG_C);
+        else RESET_BIT(FLG, FLG_C);
 
         return 0;
     }
@@ -563,6 +603,9 @@ int32_t execute_next(void)
         update_nz_flags(ra);
         // TODO; CARRY, V FLAGS
 
+        if ( 0xFFFFFFFF - ra < rb ) SET_BIT(FLG, FLG_C);
+        else RESET_BIT(FLG, FLG_C);
+
         return 0;
     }
 
@@ -597,6 +640,9 @@ int32_t execute_next(void)
         update_nz_flags(ra);
         // TODO; CARRY, V FLAGS
 
+        if ( 0xFFFFFFFF - ra < rb ) SET_BIT(FLG, FLG_C);
+        else RESET_BIT(FLG, FLG_C);
+
         return 0;
     }
 
@@ -630,6 +676,9 @@ int32_t execute_next(void)
         update_nz_flags(dif);
         // TODO; CARRY, V FLAGS
 
+        if ( ra - rb < 0) SET_BIT(FLG, FLG_C);
+        RESET_BIT(FLG, FLG_C);
+
         return 0;
     }
 
@@ -646,6 +695,9 @@ int32_t execute_next(void)
         update_nz_flags(dif);
         // TODO; CARRY, V FLAGS
 
+        if ( ra - rb < 0) SET_BIT(FLG, FLG_C);
+        RESET_BIT(FLG, FLG_C);
+
         return 0;
     }
 
@@ -661,6 +713,9 @@ int32_t execute_next(void)
 
         update_nz_flags(dif);
         // TODO; CARRY, V FLAGS
+
+        if ( ra - rb < 0) SET_BIT(FLG, FLG_C);
+        RESET_BIT(FLG, FLG_C);
 
         return 0;
     }
@@ -689,7 +744,7 @@ int32_t execute_next(void)
         uint8_t immed = GET_BITS(inst, 7, 8);
         
         cpu.reg[rd] = *(uint32_t*)(rom + PC + 4 * immed);
-        printf("%x, %d -> %X, %x\n", PC,  rd, cpu.reg[rd], immed);
+        // printf("%x, %d -> %X, %x\n", PC,  rd, cpu.reg[rd], immed);
         return 0;
     }
 
@@ -745,7 +800,7 @@ int32_t execute_next(void)
         else if(addr >= RAM_MIN && addr <= RAM_MAX)
             ram[addr - RAM_MIN] = cpu.reg[rd];
         else if(addr >= PER_MIN && addr <= PER_MAX){
-            printf("%X, %X\n", addr, cpu.reg[rd]);
+            // printf("%X, %X\n", addr, cpu.reg[rd]);
             return peripheral_write(addr, cpu.reg[rd]);
         }
 
@@ -812,10 +867,14 @@ int32_t execute_next(void)
     {
         uint8_t rd = GET_BITS(inst, 10, 3);
         uint8_t immed = GET_BITS(inst, 7, 8);
+        uint32_t immed_times_4 = immed * 4;
 
-        cpu.reg[rd] = PC + immed * 4;
+        cpu.reg[rd] = PC + immed_times_4;
 
         update_nz_flags(cpu.reg[rd]);
+
+        if ( 0xFFFFFFFF - PC < immed_times_4 ) SET_BIT(FLG, FLG_C);
+        else RESET_BIT(FLG, FLG_C);
 
         return 0;
     }
@@ -825,10 +884,14 @@ int32_t execute_next(void)
     {
         uint8_t rd = GET_BITS(inst, 10, 3);
         uint8_t immed = GET_BITS(inst, 7, 8);
+        uint32_t immed_times_4 = immed * 4;
 
-        cpu.reg[rd] = SP + immed * 4;
+        cpu.reg[rd] = SP + immed_times_4;
 
         update_nz_flags(cpu.reg[rd]);
+
+        if ( 0xFFFFFFFF - SP < immed_times_4 ) SET_BIT(FLG, FLG_C);
+        else RESET_BIT(FLG, FLG_C);
 
         return 0;
     }
@@ -837,10 +900,13 @@ int32_t execute_next(void)
     else if (GET_BITS(inst, 15, 9) == 0b101100000)
     {
         uint8_t immed = GET_BITS(inst, 6, 7);
-
-        SP = SP + immed * 4;
+        uint32_t immed_times_4 = immed * 4;
+        SP = SP + immed_times_4;
 
         update_nz_flags(SP);
+
+        if ( 0xFFFFFFFF - SP < immed_times_4 ) SET_BIT(FLG, FLG_C);
+        else RESET_BIT(FLG, FLG_C);
 
         return 0;
     }
@@ -849,10 +915,13 @@ int32_t execute_next(void)
     else if (GET_BITS(inst, 15, 9) == 0b101100001)
     {
         uint8_t immed = GET_BITS(inst, 6, 7);
-
-        SP = SP - immed * 4;
+        uint32_t immed_times_4 = immed * 4;
+        SP = SP - immed_times_4;
 
         update_nz_flags(SP);
+
+        if ( SP - immed_times_4 < 0) SET_BIT(FLG, FLG_C);
+        RESET_BIT(FLG, FLG_C);
 
         return 0;
     }
