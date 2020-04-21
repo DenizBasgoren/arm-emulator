@@ -689,7 +689,7 @@ int32_t execute_next(void)
         uint8_t immed = GET_BITS(inst, 7, 8);
         
         cpu.reg[rd] = *(uint32_t*)(rom + PC + 4 * immed);
-        printf("%d -> %X, %x\n", rd, cpu.reg[rd], PC + 4 * immed);
+        printf("%x, %d -> %X, %x\n", PC,  rd, cpu.reg[rd], immed);
         return 0;
     }
 
@@ -738,14 +738,16 @@ int32_t execute_next(void)
         uint8_t rn = GET_BITS(inst, 5, 3);
         uint8_t rd = GET_BITS(inst, 2, 3);
 
-        uint32_t addr = cpu.reg[rd];
+        uint32_t addr = cpu.reg[rn] + 4 * immed;
 
         if(addr >= ROM_MIN && addr <= ROM_MAX)
-            rom[addr - ROM_MIN] = cpu.reg[rn] + 4 * immed;
+            rom[addr - ROM_MIN] = cpu.reg[rd];
         else if(addr >= RAM_MIN && addr <= RAM_MAX)
-            ram[addr - RAM_MIN] = cpu.reg[rn] + 4 * immed;
-        else if(addr >= PER_MIN && addr <= PER_MAX)
-            return peripheral_write(addr, cpu.reg[rn] + 4 * immed);
+            ram[addr - RAM_MIN] = cpu.reg[rd];
+        else if(addr >= PER_MIN && addr <= PER_MAX){
+            printf("%X, %X\n", addr, cpu.reg[rd]);
+            return peripheral_write(addr, cpu.reg[rd]);
+        }
 
         return 0;
     }

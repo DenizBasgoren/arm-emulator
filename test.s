@@ -11,7 +11,6 @@ _main:	ldr		r0, =0x40010000       //LCD row register
 
 		movs	r3, #0	              //initialize column counter		
 		ldr     r4, =#320             //max column count	
-		.hword 56832	
         movs    r6, #0
 		movs    r7, #0
 		str		r2, [r0]              //update row register with first row count
