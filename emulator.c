@@ -1,8 +1,6 @@
 
 
 // TODO:
-// - Overflow flags
-// - Carry flag on logical, shift ops
 // - Branch prefix instruction
 // - Code documentation :c
 
@@ -17,19 +15,6 @@
 #define SET_BIT(bits, n) ((bits) |= (1 << (n)))
 #define RESET_BIT(bits,b) ((bits) &= ~(1ULL<<(b)))
 
-#define R0  (cpu.reg[ 0])
-#define R1  (cpu.reg[ 1])
-#define R2  (cpu.reg[ 2])
-#define R3  (cpu.reg[ 3])
-#define R4  (cpu.reg[ 4])
-#define R5  (cpu.reg[ 5])
-#define R6  (cpu.reg[ 6])
-#define R7  (cpu.reg[ 7])
-#define R8  (cpu.reg[ 8])
-#define R9  (cpu.reg[ 9])
-#define R10 (cpu.reg[10])
-#define R11 (cpu.reg[11])
-#define R12 (cpu.reg[12])
 #define SP  (cpu.reg[13])
 #define LR  (cpu.reg[14])
 #define PC  (cpu.reg[15])
@@ -61,6 +46,8 @@ tCPU cpu;
 
 int32_t execute_next( int is_debug_mode );
 void update_nz_flags(int32_t reg);
+void update_vc_flags_in_addition(int32_t o1, int32_t o2, int32_t res);
+void update_vc_flags_in_subtraction(int32_t o1, int32_t o2, int32_t res);
 void debug_dialog();
 void sigint_handler();
 void store_to_memory(uint32_t value, uint32_t address);
@@ -79,16 +66,8 @@ int32_t main(int32_t argc, char* argv[])
 
     system_init();
 
-    if (load_program(argv[1], rom) < 0)
-    {
-        return(1);
-    }
+    if (load_program(argv[1], rom) < 0) return 1;
 
-    // for(int i = 0; i < 128; i+=2)
-    // {
-    //     uint16_t inst = rom[i] | rom[i + 1] << 8;
-    //     printf("instruction 0x%08X 0x%04X\n", i, inst);
-    // }
 
     signal(SIGINT, sigint_handler);
 
@@ -98,10 +77,8 @@ int32_t main(int32_t argc, char* argv[])
 
     LR = 0xFFFFFFFF;
     //First 4 bytes in ROM specifies initializes the stack pointer
-    // cpu.reg[13] = rom[0] | rom[1] << 8 | rom[2] << 16 | rom[3] << 24;
     load_from_memory( &SP, ROM_MIN);
     //Following 4 bytes in ROM initializes the PC
-    // cpu.reg[15] = rom[4] | rom[5] << 8 | rom[6] << 16 | rom[7] << 24;
     load_from_memory( &PC, ROM_MIN+4);
     PC += 2;
 
@@ -119,10 +96,28 @@ int32_t main(int32_t argc, char* argv[])
 
 
 void update_nz_flags(int32_t reg) {
-        if(reg == 0) SET_BIT(FLG, FLG_Z);
-        else RESET_BIT(FLG, FLG_Z);
-        if (reg >= (1 << 31)) SET_BIT(FLG, FLG_N); // reg < 0 ?
-        else RESET_BIT(FLG, FLG_N);
+    if(reg == 0) SET_BIT(FLG, FLG_Z);
+    else RESET_BIT(FLG, FLG_Z);
+    if (reg >= (1 << 31)) SET_BIT(FLG, FLG_N); // reg < 0 ?
+    else RESET_BIT(FLG, FLG_N);
+}
+
+void update_vc_flags_in_addition(int32_t o1, int32_t o2, int32_t res) {
+    if (o1>0 && o2>0 && res<0) SET_BIT(FLG, FLG_V);
+    else if (o1<0 && o2<0 && res>0) SET_BIT(FLG, FLG_V);
+    else RESET_BIT(FLG, FLG_V);
+
+    if ( 0xFFFFFFFF - o1 < o2 ) SET_BIT(FLG, FLG_C);
+    else RESET_BIT(FLG, FLG_C);
+}
+
+void update_vc_flags_in_subtraction(int32_t o1, int32_t o2, int32_t res) {
+    if (o1<0 && o2>0 && res>0) SET_BIT(FLG, FLG_V);
+    else if (o1>0 && o2<0 && res<0) SET_BIT(FLG, FLG_V);
+    else RESET_BIT(FLG, FLG_V);
+
+    if ( o1 - o2 < 0) SET_BIT(FLG, FLG_C);
+    RESET_BIT(FLG, FLG_C);
 }
 
 void sigint_handler() {
@@ -276,9 +271,7 @@ int32_t execute_next( int is_debug_mode )
         cpu.reg[rd] = rc;
 
         update_nz_flags(rc);
-        // todo: overflow
-        if ( 0xFFFFFFFF - ra < rb ) SET_BIT(FLG, FLG_C);
-        else RESET_BIT(FLG, FLG_C);
+        update_vc_flags_in_addition(ra,rb,rc);
 
         return 0;
     }
@@ -295,10 +288,7 @@ int32_t execute_next( int is_debug_mode )
         cpu.reg[rd] = rc;
 
         update_nz_flags(rc);
-        // todo: overflow
-
-        if ( ra - rb < 0) SET_BIT(FLG, FLG_C);
-        RESET_BIT(FLG, FLG_C);
+        update_vc_flags_in_subtraction(ra,rb,rc);
 
         return 0;
     }
@@ -314,10 +304,7 @@ int32_t execute_next( int is_debug_mode )
         cpu.reg[rd] = rc;
 
         update_nz_flags(rc);
-        // todo: ovf
-
-        if ( 0xFFFFFFFF - ra < immed ) SET_BIT(FLG, FLG_C);
-        else RESET_BIT(FLG, FLG_C);
+        update_vc_flags_in_addition(ra,immed, rc);
 
         return 0;
     }
@@ -333,10 +320,7 @@ int32_t execute_next( int is_debug_mode )
         cpu.reg[rd] = rc;
 
         update_nz_flags(rc);
-        // todo: ovf
-
-        if ( ra - immed < 0) SET_BIT(FLG, FLG_C);
-        RESET_BIT(FLG, FLG_C);
+        update_vc_flags_in_subtraction(ra,immed,rc);
 
         return 0;
     }
@@ -361,10 +345,7 @@ int32_t execute_next( int is_debug_mode )
         uint32_t dif = ra - immed;
 
         update_nz_flags(dif);
-        // todo: ovf
-
-        if ( ra - immed < 0) SET_BIT(FLG, FLG_C);
-        RESET_BIT(FLG, FLG_C);
+        update_vc_flags_in_subtraction(ra,immed,dif);
 
         return 0;
     }
@@ -375,14 +356,11 @@ int32_t execute_next( int is_debug_mode )
         uint8_t immed = GET_BITS(inst, 7, 8);
 
         uint32_t ra = cpu.reg[rd];
-        ra += immed;
+        uint32_t rc = ra + immed;
 
-        cpu.reg[rd] = ra;
-        update_nz_flags(ra);
-        // todo: ov
-
-        if ( 0xFFFFFFFF - ra < immed ) SET_BIT(FLG, FLG_C);
-        else RESET_BIT(FLG, FLG_C);
+        cpu.reg[rd] = rc;
+        update_nz_flags(rc);
+        update_vc_flags_in_addition(ra,immed,rc);
 
         return 0;
     }
@@ -393,14 +371,11 @@ int32_t execute_next( int is_debug_mode )
         uint8_t immed = GET_BITS(inst, 7, 8);
 
         uint32_t ra = cpu.reg[rd];
-        ra -= immed;
+        uint32_t rc = ra - immed;
 
-        cpu.reg[rd] = ra;
-        update_nz_flags(ra);
-        // todo: v
-
-        if ( ra - immed < 0) SET_BIT(FLG, FLG_C);
-        RESET_BIT(FLG, FLG_C);
+        cpu.reg[rd] = rc;
+        update_nz_flags(rc);
+        update_vc_flags_in_subtraction(ra,immed,rc); 
 
         return 0;
     }
@@ -507,19 +482,13 @@ int32_t execute_next( int is_debug_mode )
         uint8_t rm = GET_BITS(inst, 5, 3);
         uint32_t ra = cpu.reg[rd];
         uint32_t rb = cpu.reg[rm];
-        uint32_t rc = ra + rb;
         int carry = GET_BITS(FLG, FLG_C, 1);
-        cpu.reg[rd] = rc + carry;
+        uint32_t rc = ra + rb + carry;
+
+        cpu.reg[rd] = rc;
         
         update_nz_flags(rc);
-        // TODO: ovf
-
-        if ( 0xFFFFFFFF - ra < rb + carry ) SET_BIT(FLG, FLG_C);
-        else RESET_BIT(FLG, FLG_C);
-
-        if(ra > 0 && rb > 0 && rc < 0) SET_BIT(FLG, FLG_V);
-        else if(ra < 0 && rb < 0 && rc > 0) SET_BIT(FLG, FLG_V);
-        else RESET_BIT(FLG, FLG_V);
+        update_vc_flags_in_addition(ra, rb+carry, rc);
 
         return 0;
     }
@@ -531,16 +500,13 @@ int32_t execute_next( int is_debug_mode )
         uint8_t rm = GET_BITS(inst, 5, 3);
         uint32_t ra = cpu.reg[rd];
         uint32_t rb = cpu.reg[rm];
-        uint32_t rc = rb - ra;
         int carry = GET_BITS(FLG, FLG_C, 1);
+        uint32_t rc = ra - rb - carry;
 
-        cpu.reg[rd] = rc - carry;
+        cpu.reg[rd] = rc;
         
         update_nz_flags(rc);
-        // TODO: ov
-
-        if ( ra - rb - carry < 0) SET_BIT(FLG, FLG_C);
-        RESET_BIT(FLG, FLG_C);
+        update_vc_flags_in_subtraction(ra, rb+carry, rc);
 
         return 0;
     }
@@ -602,11 +568,8 @@ int32_t execute_next( int is_debug_mode )
         uint32_t rc = ra - rb;
         
         update_nz_flags(rc);
-        // TODO: ovf
-
-        if ( ra - rb < 0) SET_BIT(FLG, FLG_C);
-        RESET_BIT(FLG, FLG_C);
-        
+        update_vc_flags_in_subtraction(ra,rb,rc);
+ 
         return 0;
     }
 
@@ -620,11 +583,8 @@ int32_t execute_next( int is_debug_mode )
         uint32_t rc = ra + rb;
         
         update_nz_flags(rc);
-        // TODO: ovf
-
-        if ( 0xFFFFFFFF - ra < rb ) SET_BIT(FLG, FLG_C);
-        else RESET_BIT(FLG, FLG_C);
-        
+        update_vc_flags_in_addition(ra,rb,rc);
+ 
         return 0;
     }
 
@@ -792,10 +752,7 @@ int32_t execute_next( int is_debug_mode )
         uint32_t dif = ra - rb;
 
         update_nz_flags(dif);
-        // todo: ovf
-
-        if ( ra - rb < 0) SET_BIT(FLG, FLG_C);
-        RESET_BIT(FLG, FLG_C);
+        update_vc_flags_in_subtraction(ra,rb,dif);
 
         return 0;
     }
@@ -811,10 +768,7 @@ int32_t execute_next( int is_debug_mode )
         uint32_t dif = ra - rb;
 
         update_nz_flags(dif);
-        // TODO; ovf
-
-        if ( ra - rb < 0) SET_BIT(FLG, FLG_C);
-        RESET_BIT(FLG, FLG_C);
+        update_vc_flags_in_subtraction(ra,rb,dif);
 
         return 0;
     }
@@ -830,10 +784,7 @@ int32_t execute_next( int is_debug_mode )
         uint32_t dif = ra - rb;
 
         update_nz_flags(dif);
-        // TODO; ovf
-
-        if ( ra - rb < 0) SET_BIT(FLG, FLG_C);
-        RESET_BIT(FLG, FLG_C);
+        update_vc_flags_in_subtraction(ra,rb,dif);
 
         return 0;
     }
@@ -1111,7 +1062,7 @@ int32_t execute_next( int is_debug_mode )
 
         if (should_branch == 1) {
             int8_t offset = GET_BITS(inst, 7, 8);
-            PC += offset * 2 + 2; // NOTE: +2 suspicious here. changed to +4. pc is "current instruction" or current pc?
+            PC += offset * 2 + 2;
         }
         return 0;
     }
@@ -1119,11 +1070,11 @@ int32_t execute_next( int is_debug_mode )
     // B(NO COND) inst_address + 4 + signed_offset * 2
     else if (GET_BITS(inst, 15, 5) == 0b11100) {
         int16_t offset = GET_BITS(inst, 10, 11);
-        if(GET_BITS(inst, 10, 1) == 1){ // NOTE: not tested
+        if(GET_BITS(inst, 10, 1) == 1){ // ??
             offset <<= 5;
             offset >>= 5;
         }
-        PC += offset * 2 + 2; // NOTE: +2 changed to +4.
+        PC += offset * 2 + 2;
         return 0;
     }
 
@@ -1153,19 +1104,12 @@ int32_t execute_next( int is_debug_mode )
         uint16_t offset = GET_BITS(inst, 10, 11);
 
         uint16_t prev_inst = rom[PC - 6] | rom[PC - 1] << 8; // NOTE: pc-1 here while pc-5 at blx ^^
-        // if(GET_BITS(prev_inst, 15, 5) != 0b11110){
-        //     return 1;
-        //     // fprintf(stderr, "BL: previous instruction is not a branch prefix instruction 0x%08X  0x%04X 0x%04X\n", PC - 4, prev_inst, inst);
-        //     // return 1;
-        // }
 
         int16_t poff = GET_BITS(prev_inst, 10, 11);
         LR = PC;
         PC += 2 + (poff<<12) + offset*2; // NOTE: +2 suspicious
         return 0;
     }
-
-
 
     fprintf(stderr, "invalid instruction 0x%08X 0x%04X\n", PC - 4, inst);
     return 1;
@@ -1186,7 +1130,6 @@ void debug_dialog () {
 
         uint32_t from, to;
         while(1) {
-            // printf("%c[2J%c[1;1H", 27, 27);
             puts("\n\nPrint memory from xxxxxxxx to xxxxxxxx (hex)");
             puts("To go to the next instruction, type -");
             puts("eg. \"12fa0257-13000000\" ");
@@ -1205,7 +1148,7 @@ void debug_dialog () {
                     printf("%x ", ram[from - RAM_MIN]);
                 }
             }
-            else { // ???
+            else {
                 printf("instruction unclear");
             }
 
