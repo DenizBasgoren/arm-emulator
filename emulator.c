@@ -121,7 +121,7 @@ int32_t main(int32_t argc, char* argv[])
 void update_nz_flags(int32_t reg) {
         if(reg == 0) SET_BIT(FLG, FLG_Z);
         else RESET_BIT(FLG, FLG_Z);
-        if (reg >= (1 << 31)) SET_BIT(FLG, FLG_N);
+        if (reg >= (1 << 31)) SET_BIT(FLG, FLG_N); // reg < 0 ?
         else RESET_BIT(FLG, FLG_N);
 }
 
@@ -163,24 +163,12 @@ void load_from_memory(uint32_t *destination, uint32_t address) {
     int base;
 
     if(address >= ROM_MIN && address <= ROM_MAX) {
-
         base = address - ROM_MIN;
-
-        // *destination = 0xFF & rom[address - ROM_MIN];
-        // *destination |= (0xFF & rom[address - ROM_MIN + 1]) << 8;
-        // *destination |= (0xFF & rom[address - ROM_MIN + 2]) << 16;
-        // *destination |= (uint32_t)(0xFF & rom[address - ROM_MIN + 3]) << 24;
         *destination = rom[base] | rom[base+1] << 8 | rom[base+2] << 16 | rom[base+3] << 24;
-        
     }
-    else if(address >= RAM_MIN && address <= RAM_MAX) {
-        // *destination = 0xFF & ram[address - RAM_MIN];
-        // *destination |= (0xFF & ram[address - RAM_MIN + 1]) << 8;
-        // *destination |= (0xFF & ram[address - RAM_MIN + 2]) << 16;
-        // *destination |= (uint32_t)(0xFF & ram[address - RAM_MIN + 3]) << 24;  
+    else if(address >= RAM_MIN && address <= RAM_MAX) { 
         base = address - RAM_MIN;   
         *destination = ram[base] | ram[base+1] << 8 | ram[base+2] << 16 | ram[base+3] << 24;
-   
     }
     else if(address >= PER_MIN && address <= PER_MAX)
         peripheral_read(address, destination);
@@ -211,11 +199,20 @@ int32_t execute_next( int is_debug_mode )
         uint8_t rm = GET_BITS(inst, 5, 3);
         uint8_t rd = GET_BITS(inst, 2, 3);
 
-        uint32_t rc = (uint32_t) cpu.reg[rm] << immed;
+        uint32_t rm_ = cpu.reg[rm];
+        int carry = GET_BITS(rm_, 31-immed, 1);
+
+        uint32_t rc = rm_ << immed;
         cpu.reg[rd] = rc;
 
         update_nz_flags(rc);
-        // todo: impl carry, conditions..
+
+        // if immed is positive, update carry
+        if (immed > 0) {
+            if (carry) SET_BIT(FLG, FLG_C);
+            else RESET_BIT(FLG, FLG_C);
+        }
+
         return 0;
     }
 
@@ -225,11 +222,22 @@ int32_t execute_next( int is_debug_mode )
         uint8_t rm = GET_BITS(inst, 5, 3);
         uint8_t rd = GET_BITS(inst, 2, 3);
 
-        uint32_t rc = (uint32_t) cpu.reg[rm] >> immed;
+        uint32_t rm_ = cpu.reg[rm];
+
+        // update carry
+        int carry;
+        if (immed > 0) {
+            carry = GET_BITS(rm_, immed-1, 1);
+
+            if (carry) SET_BIT(FLG, FLG_C);
+            else RESET_BIT(FLG, FLG_C);
+        }
+
+        uint32_t rc = rm_ >> immed;
         cpu.reg[rd] = rc;
 
         update_nz_flags(rc);
-        // todo: impl carry, conditions..
+
         return 0;
     }
 
@@ -239,11 +247,20 @@ int32_t execute_next( int is_debug_mode )
         uint8_t rm = GET_BITS(inst, 5, 3);
         uint8_t rd = GET_BITS(inst, 2, 3);
 
-        int32_t rc = cpu.reg[rm] >> immed;
+        int32_t rm_ = cpu.reg[rm];
+        int carry = GET_BITS(rm_, 31-immed, 1);
+
+        int32_t rc = rm_ >> immed;
         cpu.reg[rd] = rc;
 
         update_nz_flags(rc);
-        // todo: impl carry, conditions..
+
+        // if immed is positive, update carry
+        if (immed > 0) {
+            if (carry) SET_BIT(FLG, FLG_C);
+            else RESET_BIT(FLG, FLG_C);
+        }
+
         return 0;
     }
 
@@ -259,7 +276,7 @@ int32_t execute_next( int is_debug_mode )
         cpu.reg[rd] = rc;
 
         update_nz_flags(rc);
-        // todo: impl carry, overflo, conditions..
+        // todo: overflow
         if ( 0xFFFFFFFF - ra < rb ) SET_BIT(FLG, FLG_C);
         else RESET_BIT(FLG, FLG_C);
 
@@ -278,7 +295,7 @@ int32_t execute_next( int is_debug_mode )
         cpu.reg[rd] = rc;
 
         update_nz_flags(rc);
-        // todo: impl carry, overflo, conditions..
+        // todo: overflow
 
         if ( ra - rb < 0) SET_BIT(FLG, FLG_C);
         RESET_BIT(FLG, FLG_C);
@@ -297,7 +314,7 @@ int32_t execute_next( int is_debug_mode )
         cpu.reg[rd] = rc;
 
         update_nz_flags(rc);
-        // todo: impl carry, overflo, conditions..
+        // todo: ovf
 
         if ( 0xFFFFFFFF - ra < immed ) SET_BIT(FLG, FLG_C);
         else RESET_BIT(FLG, FLG_C);
@@ -316,7 +333,7 @@ int32_t execute_next( int is_debug_mode )
         cpu.reg[rd] = rc;
 
         update_nz_flags(rc);
-        // todo: impl carry, overflo, conditions..
+        // todo: ovf
 
         if ( ra - immed < 0) SET_BIT(FLG, FLG_C);
         RESET_BIT(FLG, FLG_C);
@@ -331,8 +348,7 @@ int32_t execute_next( int is_debug_mode )
 
         cpu.reg[rd] = immed;
 
-        // doesnt update nz!
-        // todo: impl carry, overflo, conditions..
+        update_nz_flags( cpu.reg[rd] );
         return 0;
     }
 
@@ -345,7 +361,7 @@ int32_t execute_next( int is_debug_mode )
         uint32_t dif = ra - immed;
 
         update_nz_flags(dif);
-        // todo: impl carry, overflo, conditions..
+        // todo: ovf
 
         if ( ra - immed < 0) SET_BIT(FLG, FLG_C);
         RESET_BIT(FLG, FLG_C);
@@ -363,7 +379,7 @@ int32_t execute_next( int is_debug_mode )
 
         cpu.reg[rd] = ra;
         update_nz_flags(ra);
-        // todo: impl carry, overflo, conditions..
+        // todo: ov
 
         if ( 0xFFFFFFFF - ra < immed ) SET_BIT(FLG, FLG_C);
         else RESET_BIT(FLG, FLG_C);
@@ -381,7 +397,7 @@ int32_t execute_next( int is_debug_mode )
 
         cpu.reg[rd] = ra;
         update_nz_flags(ra);
-        // todo: impl carry, overflo, conditions..
+        // todo: v
 
         if ( ra - immed < 0) SET_BIT(FLG, FLG_C);
         RESET_BIT(FLG, FLG_C);
@@ -400,8 +416,6 @@ int32_t execute_next( int is_debug_mode )
         cpu.reg[rd] = rc;
         
         update_nz_flags(rc);
-
-
         return 0;
     }
 
@@ -425,11 +439,19 @@ int32_t execute_next( int is_debug_mode )
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
         uint32_t ra = cpu.reg[rd];
-        uint32_t rb = cpu.reg[rm];
+        uint32_t rb = GET_BITS(cpu.reg[rm], 7, 8);
         uint32_t rc = ra << rb;
         cpu.reg[rd] = rc;
         
+        int carry = GET_BITS(ra, 31-rb, 1);
+
         update_nz_flags(rc);
+
+        // if shift is positive, update carry
+        if (rb > 0) {
+            if (carry) SET_BIT(FLG, FLG_C);
+            else RESET_BIT(FLG, FLG_C);
+        }
         return 0;
     }
 
@@ -439,11 +461,20 @@ int32_t execute_next( int is_debug_mode )
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
         uint32_t ra = cpu.reg[rd];
-        uint32_t rb = cpu.reg[rm];
+        uint32_t rb = GET_BITS(cpu.reg[rm], 7, 8);
         uint32_t rc = ra >> rb;
         cpu.reg[rd] = rc;
         
+        int carry = GET_BITS(ra, rb-1, 1);
+
         update_nz_flags(rc);
+
+        // if shift is positive, update carry
+        if (rb > 0) {
+            if (carry) SET_BIT(FLG, FLG_C);
+            else RESET_BIT(FLG, FLG_C);
+        }
+
         return 0;
     }
 
@@ -453,11 +484,19 @@ int32_t execute_next( int is_debug_mode )
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
         int32_t ra = cpu.reg[rd];
-        int32_t rb = cpu.reg[rm];
+        int32_t rb = GET_BITS(cpu.reg[rm], 7, 8);
         int32_t rc = ra >> rb;
         cpu.reg[rd] = rc;
         
         update_nz_flags(rc);
+
+        int carry = GET_BITS(ra, rb-1, 1);
+        // if shift is positive, update carry
+        if (rb > 0) {
+            if (carry) SET_BIT(FLG, FLG_C);
+            else RESET_BIT(FLG, FLG_C);
+        }
+
         return 0;
     }
 
@@ -473,7 +512,7 @@ int32_t execute_next( int is_debug_mode )
         cpu.reg[rd] = rc + carry;
         
         update_nz_flags(rc);
-        // TODO: Add the carry flag code
+        // TODO: ovf
 
         if ( 0xFFFFFFFF - ra < rb + carry ) SET_BIT(FLG, FLG_C);
         else RESET_BIT(FLG, FLG_C);
@@ -498,7 +537,7 @@ int32_t execute_next( int is_debug_mode )
         cpu.reg[rd] = rc - carry;
         
         update_nz_flags(rc);
-        // TODO: Add the overflow and carry flag code
+        // TODO: ov
 
         if ( ra - rb - carry < 0) SET_BIT(FLG, FLG_C);
         RESET_BIT(FLG, FLG_C);
@@ -512,13 +551,17 @@ int32_t execute_next( int is_debug_mode )
         uint8_t rd = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
         uint32_t ra = cpu.reg[rd];
-        uint32_t rb = cpu.reg[rm] % 32;
+        uint32_t rb = GET_BITS(cpu.reg[rm], 7, 8) % 32;
         uint32_t rc = (ra >> rb) | (ra << (32 - rb));
         cpu.reg[rd] = rc;
         
         update_nz_flags(rc);
-        // TODO: Add the carry flag code
+        int carry = GET_BITS(ra, rb-1, 1);
 
+        if (rb > 0) {
+            if (carry) SET_BIT(FLG, FLG_C);
+            else RESET_BIT(FLG, FLG_C);
+        }
         return 0;
     }
 
@@ -530,7 +573,6 @@ int32_t execute_next( int is_debug_mode )
         uint32_t ra = cpu.reg[rd];
         uint32_t rb = cpu.reg[rm];
         uint32_t rc = ra & rb;
-        cpu.reg[rd] = rc;
         
         update_nz_flags(rc);
         return 0;
@@ -560,9 +602,8 @@ int32_t execute_next( int is_debug_mode )
         uint32_t rc = ra - rb;
         
         update_nz_flags(rc);
-        // TODO: Add the overflow and carry flag code
+        // TODO: ovf
 
-        // note: prev carry shouldnt be considered here
         if ( ra - rb < 0) SET_BIT(FLG, FLG_C);
         RESET_BIT(FLG, FLG_C);
         
@@ -579,7 +620,7 @@ int32_t execute_next( int is_debug_mode )
         uint32_t rc = ra + rb;
         
         update_nz_flags(rc);
-        // TODO: Add the overflow and carry flag code
+        // TODO: ovf
 
         if ( 0xFFFFFFFF - ra < rb ) SET_BIT(FLG, FLG_C);
         else RESET_BIT(FLG, FLG_C);
@@ -651,7 +692,6 @@ int32_t execute_next( int is_debug_mode )
         uint32_t ra = cpu.reg[rm];
         cpu.reg[rd] = ra;
         
-        // update_nz_flags(ra);
         return 0;
     }
 
@@ -665,12 +705,6 @@ int32_t execute_next( int is_debug_mode )
         
         ra += rb;
         cpu.reg[ld] = ra;
-        
-        update_nz_flags(ra);
-        // TODO; CARRY, V FLAGS
-
-        if ( 0xFFFFFFFF - ra < rb ) SET_BIT(FLG, FLG_C);
-        else RESET_BIT(FLG, FLG_C);
 
         return 0;
     }
@@ -686,9 +720,6 @@ int32_t execute_next( int is_debug_mode )
         ra = rb;
         cpu.reg[rd] = ra;
         
-        // update_nz_flags(ra); doesnt update nz!
-        // TODO; CARRY, V FLAGS
-
         return 0;
     }
 
@@ -703,12 +734,6 @@ int32_t execute_next( int is_debug_mode )
         ra += rb;
         cpu.reg[rd+8] = ra;
         
-        // update_nz_flags(ra); // doesnt update nz!
-        // TODO; CARRY, V FLAGS
-
-        if ( 0xFFFFFFFF - ra < rb ) SET_BIT(FLG, FLG_C);
-        else RESET_BIT(FLG, FLG_C);
-
         return 0;
     }
 
@@ -723,9 +748,6 @@ int32_t execute_next( int is_debug_mode )
         ra = rb;
         cpu.reg[rd+8] = ra;
         
-        // update_nz_flags(ra); // doesnt update nz
-        // TODO; CARRY, V FLAGS
-
         return 0;
     }
 
@@ -740,12 +762,6 @@ int32_t execute_next( int is_debug_mode )
         ra += rb;
         cpu.reg[rd+8] = ra;
         
-        // update_nz_flags(ra);
-        // TODO; CARRY, V FLAGS
-
-        if ( 0xFFFFFFFF - ra < rb ) SET_BIT(FLG, FLG_C);
-        else RESET_BIT(FLG, FLG_C);
-
         return 0;
     }
 
@@ -760,9 +776,6 @@ int32_t execute_next( int is_debug_mode )
         ra = rb;
         cpu.reg[rd+8] = ra;
         
-        // update_nz_flags(ra);
-        // TODO; CARRY, V FLAGS
-
         return 0;
     }
 
@@ -779,7 +792,7 @@ int32_t execute_next( int is_debug_mode )
         uint32_t dif = ra - rb;
 
         update_nz_flags(dif);
-        // TODO; CARRY, V FLAGS
+        // todo: ovf
 
         if ( ra - rb < 0) SET_BIT(FLG, FLG_C);
         RESET_BIT(FLG, FLG_C);
@@ -798,7 +811,7 @@ int32_t execute_next( int is_debug_mode )
         uint32_t dif = ra - rb;
 
         update_nz_flags(dif);
-        // TODO; CARRY, V FLAGS
+        // TODO; ovf
 
         if ( ra - rb < 0) SET_BIT(FLG, FLG_C);
         RESET_BIT(FLG, FLG_C);
@@ -817,7 +830,7 @@ int32_t execute_next( int is_debug_mode )
         uint32_t dif = ra - rb;
 
         update_nz_flags(dif);
-        // TODO; CARRY, V FLAGS
+        // TODO; ovf
 
         if ( ra - rb < 0) SET_BIT(FLG, FLG_C);
         RESET_BIT(FLG, FLG_C);
@@ -848,10 +861,6 @@ int32_t execute_next( int is_debug_mode )
         uint8_t rd = GET_BITS(inst, 10, 3);
         uint8_t immed = GET_BITS(inst, 7, 8);
         
-        // printf("%x", (PC + 4 * immed));
-        // cpu.reg[rd] = *(uint32_t*)(rom + PC + 4 * immed);
-        // printf("%x, %d -> %X, %x\n", PC,  rd, cpu.reg[rd], immed);
-
         load_from_memory( &cpu.reg[rd], PC + immed * 4);
         return 0;
     }
@@ -865,13 +874,6 @@ int32_t execute_next( int is_debug_mode )
         uint8_t rd = GET_BITS(inst, 2, 3);
 
         uint32_t addr = cpu.reg[rm] + cpu.reg[rn];
-
-        // if(addr >= ROM_MIN && addr <= ROM_MAX)
-        //     rom[addr - ROM_MIN] = cpu.reg[rd];
-        // else if(addr >= RAM_MIN && addr <= RAM_MAX)
-        //     ram[addr - RAM_MIN] = cpu.reg[rd];
-        // else if(addr >= PER_MIN && addr <= PER_MAX)
-        //     return peripheral_write(addr, cpu.reg[rd]);
 
         store_to_memory( cpu.reg[rd], addr);
 
@@ -888,13 +890,6 @@ int32_t execute_next( int is_debug_mode )
 
         uint32_t addr = cpu.reg[rm] + cpu.reg[rn];
 
-        // if(addr >= ROM_MIN && addr <= ROM_MAX)
-        //     cpu.reg[rd] = rom[addr - ROM_MIN];
-        // else if(addr >= RAM_MIN && addr <= RAM_MAX)
-        //     cpu.reg[rd] = ram[addr - RAM_MIN];
-        // else if(addr >= PER_MIN && addr <= PER_MAX)
-        //     return peripheral_read(addr, &cpu.reg[rd]);
-
         load_from_memory( &cpu.reg[rd], addr);
 
         return 0;
@@ -910,17 +905,7 @@ int32_t execute_next( int is_debug_mode )
 
         uint32_t addr = cpu.reg[rn] + 4 * immed;
 
-        // if(addr >= ROM_MIN && addr <= ROM_MAX)
-        //     rom[addr - ROM_MIN] = cpu.reg[rd];
-        // else if(addr >= RAM_MIN && addr <= RAM_MAX)
-        //     ram[addr - RAM_MIN] = cpu.reg[rd];
-        // else if(addr >= PER_MIN && addr <= PER_MAX){
-        //     // printf("%X, %X\n", addr, cpu.reg[rd]);
-        //     return peripheral_write(addr, cpu.reg[rd]);
-        // }
-
         store_to_memory( cpu.reg[rd], addr);
-
 
         return 0;
     }
@@ -933,17 +918,9 @@ int32_t execute_next( int is_debug_mode )
         uint8_t rn = GET_BITS(inst, 5, 3);
         uint8_t rd = GET_BITS(inst, 2, 3);
 
-        uint32_t addr = cpu.reg[rn] + 4 * immed; // +2 ?????
-
-        // if(addr >= ROM_MIN && addr <= ROM_MAX)
-        //     cpu.reg[rd] = rom[addr - ROM_MIN];
-        // else if(addr >= RAM_MIN && addr <= RAM_MAX)
-        //     cpu.reg[rd] = ram[addr - RAM_MIN];
-        // else if(addr >= PER_MIN && addr <= PER_MAX)
-        //     return peripheral_read(addr, &cpu.reg[rd]);
+        uint32_t addr = cpu.reg[rn] + 4 * immed;
 
         load_from_memory( &cpu.reg[rd], addr);
-
 
         return 0;
     }
@@ -955,13 +932,6 @@ int32_t execute_next( int is_debug_mode )
         uint8_t immed = GET_BITS(inst, 7, 8);
 
         uint32_t addr = SP + immed * 4;
-
-        // if(addr >= ROM_MIN && addr <= ROM_MAX)
-        //     rom[addr - ROM_MIN] = cpu.reg[rd];
-        // else if(addr >= RAM_MIN && addr <= RAM_MAX)
-        //     ram[addr - RAM_MIN] = cpu.reg[rd];
-        // else if(addr >= PER_MIN && addr <= PER_MAX)
-        //     return peripheral_write(addr, cpu.reg[rd]);
 
         store_to_memory( cpu.reg[rd], addr);
 
@@ -977,15 +947,7 @@ int32_t execute_next( int is_debug_mode )
 
         uint32_t addr = SP + immed * 4;
 
-        // if(addr >= ROM_MIN && addr <= ROM_MAX)
-        //     cpu.reg[rd] = rom[addr - ROM_MIN];
-        // else if(addr >= RAM_MIN && addr <= RAM_MAX)
-        //     cpu.reg[rd] = ram[addr - RAM_MIN];
-        // else if(addr >= PER_MIN && addr <= PER_MAX)
-        //     return peripheral_read(addr, &cpu.reg[rd]);
-
         load_from_memory( &cpu.reg[rd], addr);
-
 
         return 0;
     }
@@ -1000,10 +962,9 @@ int32_t execute_next( int is_debug_mode )
 
         cpu.reg[rd] = PC + immed_times_4;
 
-        update_nz_flags(cpu.reg[rd]);
-
-        if ( 0xFFFFFFFF - PC < immed_times_4 ) SET_BIT(FLG, FLG_C);
-        else RESET_BIT(FLG, FLG_C);
+        // Adress must be divisible by 4. so, truncate last two bits.
+        RESET_BIT(cpu.reg[rd], 0);
+        RESET_BIT(cpu.reg[rd], 1);
 
         return 0;
     }
@@ -1016,11 +977,10 @@ int32_t execute_next( int is_debug_mode )
         uint32_t immed_times_4 = immed * 4;
 
         cpu.reg[rd] = SP + immed_times_4;
-
-        update_nz_flags(cpu.reg[rd]);
-
-        if ( 0xFFFFFFFF - SP < immed_times_4 ) SET_BIT(FLG, FLG_C);
-        else RESET_BIT(FLG, FLG_C);
+        
+        // Adress must be divisible by 4. so, truncate last two bits.
+        RESET_BIT(cpu.reg[rd], 0);
+        RESET_BIT(cpu.reg[rd], 1);
 
         return 0;
     }
@@ -1033,11 +993,6 @@ int32_t execute_next( int is_debug_mode )
         uint32_t immed_times_4 = immed * 4;
         SP = SP + immed_times_4;
 
-        update_nz_flags(SP);
-
-        if ( 0xFFFFFFFF - SP < immed_times_4 ) SET_BIT(FLG, FLG_C);
-        else RESET_BIT(FLG, FLG_C);
-
         return 0;
     }
 
@@ -1047,11 +1002,6 @@ int32_t execute_next( int is_debug_mode )
         uint8_t immed = GET_BITS(inst, 6, 7);
         uint32_t immed_times_4 = immed * 4;
         SP = SP - immed_times_4;
-
-        update_nz_flags(SP);
-
-        if ( SP - immed_times_4 < 0) SET_BIT(FLG, FLG_C);
-        RESET_BIT(FLG, FLG_C);
 
         return 0;
     }
