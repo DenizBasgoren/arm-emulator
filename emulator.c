@@ -1,3 +1,15 @@
+
+
+// TODO:
+// - Overflow flags
+// - Carry flag on logical, shift ops
+// - Branch prefix instruction
+// - Code documentation :c
+
+
+#include <signal.h>
+#include <stdio.h>
+
 #include "emulib.h"
 
 // start (in order of documentation), offset ( number of bits from start to direction of 0)
@@ -47,17 +59,19 @@ uint8_t rom[0x200000];
 uint8_t ram[0x100000];
 tCPU cpu;
 
-
-int32_t execute_next(void);
+int32_t execute_next( int is_debug_mode );
 void update_nz_flags(int32_t reg);
 void debug_dialog();
+void sigint_handler();
+void store_to_memory(uint32_t value, uint32_t address);
+void load_from_memory(uint32_t *destination, uint32_t address);
 
 //Emulator main function
 int32_t main(int32_t argc, char* argv[])
 {
     if (argc < 2)
     {
-        fprintf(stderr, "input assembly file not specified\n");
+        puts("Usage: emulator path/to/arm_assembly.s [, -debug ]");
         return(1);
     }
 
@@ -76,6 +90,8 @@ int32_t main(int32_t argc, char* argv[])
     //     printf("instruction 0x%08X 0x%04X\n", i, inst);
     // }
 
+    signal(SIGINT, sigint_handler);
+
     memset(ram, 0xFF, sizeof(ram));
 
     cpu.cpsr = 0;
@@ -87,9 +103,11 @@ int32_t main(int32_t argc, char* argv[])
     cpu.reg[15] = rom[4] | rom[5] << 8 | rom[6] << 16 | rom[7] << 24;
     cpu.reg[15] += 2;
 
+    int is_debug_mode = argc == 3 && !strcmp(argv[2], "-debug");
+
     while (1)
     {
-        if (execute_next()) break;
+        if (execute_next( is_debug_mode )) break;
     }
 
     system_deinit();
@@ -105,24 +123,78 @@ void update_nz_flags(int32_t reg) {
         else RESET_BIT(FLG, FLG_N);
 }
 
+void sigint_handler() {
+    puts("Termination");
+    exit(0);
+}
+
+
+void store_to_memory(uint32_t value, uint32_t address) {
+
+    // Adress must be divisible by 4. so, truncate last two bits.
+    RESET_BIT(address, 0);
+    RESET_BIT(address, 1);
+
+    if(address >= ROM_MIN && address <= ROM_MAX) {
+        rom[address - ROM_MIN+0] = GET_BITS(value, 32-1, 8);
+        rom[address - ROM_MIN+1] = GET_BITS(value, 24-1, 8);
+        rom[address - ROM_MIN+2] = GET_BITS(value, 16-1, 8);
+        rom[address - ROM_MIN+3] = GET_BITS(value, 8-1, 8);
+    }
+    else if(address >= RAM_MIN && address <= RAM_MAX) {
+        ram[address - RAM_MIN+0] = GET_BITS(value, 32-1, 8);
+        ram[address - RAM_MIN+1] = GET_BITS(value, 24-1, 8);
+        ram[address - RAM_MIN+2] = GET_BITS(value, 16-1, 8);
+        ram[address - RAM_MIN+3] = GET_BITS(value, 8-1, 8);
+    }
+    else if(address >= PER_MIN && address <= PER_MAX)
+        peripheral_write(address, value);
+
+}
+
+void load_from_memory(uint32_t *destination, uint32_t address) {
+
+    // Adress must be divisible by 4. so, truncate last two bits.
+    RESET_BIT(address, 0);
+    RESET_BIT(address, 1);
+
+    if(address >= ROM_MIN && address <= ROM_MAX) {
+        *destination = 0xFF & rom[address - ROM_MIN];
+        *destination |= (0xFF & rom[address - ROM_MIN + 1]) << 8;
+        *destination |= (0xFF & rom[address - ROM_MIN + 2]) << 16;
+        *destination |= (uint32_t)(0xFF & rom[address - ROM_MIN + 3]) << 24;
+        
+    }
+    else if(address >= RAM_MIN && address <= RAM_MAX) {
+        *destination = 0xFF & ram[address - RAM_MIN];
+        *destination |= (0xFF & ram[address - RAM_MIN + 1]) << 8;
+        *destination |= (0xFF & ram[address - RAM_MIN + 2]) << 16;
+        *destination |= (uint32_t)(0xFF & ram[address - RAM_MIN + 3]) << 24;        
+    }
+    else if(address >= PER_MIN && address <= PER_MAX)
+        peripheral_read(address, destination);
+}
+
+
 //Fetches an instruction from ROM, decodes and executes it
-int32_t execute_next(void)
+int32_t execute_next( int is_debug_mode )
 {
     uint16_t inst = rom[PC - 2] | rom[PC - 1] << 8;
     PC += 2;
-    
-    // printf("instruction 0x%08X 0x%04X\n", PC - 4, inst);
 
+    if (is_debug_mode) {
+        printf("\n\nInstruction 0x%08X 0x%04X\n", PC - 4, inst);
+        debug_dialog();
+    }
+    
     // DEBUG INSTRUCTION == 1101 1110 0000 0000
     if (inst == 0xde00) {
         debug_dialog();
         return 0;
     }
 
-    // TODO: operands should be uint32_t or int32_t?
 
-    // todo: check operator precedence: cast, >> 
-    // LSL
+    // LSL Rd, Rm, immed
     else if (GET_BITS(inst, 15, 5) == 0b00000) {
         uint8_t immed = GET_BITS(inst, 10, 5);
         uint8_t rm = GET_BITS(inst, 5, 3);
@@ -136,7 +208,7 @@ int32_t execute_next(void)
         return 0;
     }
 
-    // LSR
+    // LSR Rd, Rm, immed
     else if (GET_BITS(inst, 15, 5) == 0b00000) {
         uint8_t immed = GET_BITS(inst, 10, 5);
         uint8_t rm = GET_BITS(inst, 5, 3);
@@ -150,7 +222,7 @@ int32_t execute_next(void)
         return 0;
     }
 
-    // ASR
+    // ASR Rd, Rm, immed
     else if (GET_BITS(inst, 15, 5) == 0b00010) {
         uint8_t immed = GET_BITS(inst, 10, 5);
         uint8_t rm = GET_BITS(inst, 5, 3);
@@ -164,14 +236,14 @@ int32_t execute_next(void)
         return 0;
     }
 
-    // ADD
+    // ADD Rd, Rn, Rm
     else if (GET_BITS(inst, 15, 7) == 0b0001100) {
         uint8_t rm = GET_BITS(inst, 8, 3);
         uint8_t rn = GET_BITS(inst, 5, 3);
         uint8_t rd = GET_BITS(inst, 2, 3);
 
-        uint32_t ra = cpu.reg[rm];
-        uint32_t rb = cpu.reg[rn];
+        uint32_t ra = cpu.reg[rn];
+        uint32_t rb = cpu.reg[rm];
         uint32_t rc = ra + rb;
         cpu.reg[rd] = rc;
 
@@ -183,14 +255,14 @@ int32_t execute_next(void)
         return 0;
     }
 
-    // SUB
+    // SUB Rd, Rn, Rm
     else if (GET_BITS(inst, 15, 7) == 0b0001101) {
         uint8_t rm = GET_BITS(inst, 8, 3);
         uint8_t rn = GET_BITS(inst, 5, 3);
         uint8_t rd = GET_BITS(inst, 2, 3);
 
-        uint32_t ra = cpu.reg[rm];
-        uint32_t rb = cpu.reg[rn];
+        uint32_t ra = cpu.reg[rn];
+        uint32_t rb = cpu.reg[rm];
         uint32_t rc = ra - rb;
         cpu.reg[rd] = rc;
 
@@ -203,7 +275,7 @@ int32_t execute_next(void)
         return 0;
     }
 
-    // ADD
+    // ADD Rd, Rn, immed
     else if (GET_BITS(inst, 15, 7) == 0b0001110) {
         uint8_t immed = GET_BITS(inst, 8, 3);
         uint8_t rn = GET_BITS(inst, 5, 3);
@@ -222,7 +294,7 @@ int32_t execute_next(void)
         return 0;
     }
 
-    // SUB
+    // SUB Rd, Rn, immed
     else if (GET_BITS(inst, 15, 7) == 0b0001111) {
         uint8_t immed = GET_BITS(inst, 8, 3);
         uint8_t rn = GET_BITS(inst, 5, 3);
@@ -241,7 +313,7 @@ int32_t execute_next(void)
         return 0;
     }
 
-    // MOV
+    // MOV Rd, immed
     else if (GET_BITS(inst, 15, 5) == 0b00100) {
         uint8_t rd = GET_BITS(inst, 10, 3);
         uint8_t immed = GET_BITS(inst, 7, 8);
@@ -253,7 +325,7 @@ int32_t execute_next(void)
         return 0;
     }
 
-    // CMP
+    // CMP Rm, immed
     else if (GET_BITS(inst, 15, 5) == 0b00101) {
         uint8_t rn = GET_BITS(inst, 10, 3);
         uint8_t immed = GET_BITS(inst, 7, 8);
@@ -270,7 +342,7 @@ int32_t execute_next(void)
         return 0;
     }
 
-    // ADD
+    // ADD Rd, immed
     else if (GET_BITS(inst, 15, 5) == 0b00110) {
         uint8_t rd = GET_BITS(inst, 10, 3);
         uint8_t immed = GET_BITS(inst, 7, 8);
@@ -288,7 +360,7 @@ int32_t execute_next(void)
         return 0;
     }
 
-    // SUB
+    // SUB Rd, immed
     else if (GET_BITS(inst, 15, 5) == 0b00111) {
         uint8_t rd = GET_BITS(inst, 10, 3);
         uint8_t immed = GET_BITS(inst, 7, 8);
@@ -306,7 +378,7 @@ int32_t execute_next(void)
         return 0;
     }
 
-    // ANDS
+    // AND Rd, Rm
     else if (GET_BITS(inst, 15, 10) == 0b0100000000)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -321,7 +393,8 @@ int32_t execute_next(void)
 
         return 0;
     }
-    // EORS
+
+    // EOR Rd, Rm
     else if (GET_BITS(inst, 15, 10) == 0b0100000001)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -334,7 +407,8 @@ int32_t execute_next(void)
         update_nz_flags(rc);
         return 0;
     }
-    // LSLS
+
+    // LSL Rd, Rm
     else if (GET_BITS(inst, 15, 10) == 0b0100000010)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -347,7 +421,8 @@ int32_t execute_next(void)
         update_nz_flags(rc);
         return 0;
     }
-    // LSRS
+
+    // LSR Rd, Rm
     else if (GET_BITS(inst, 15, 10) == 0b0100000011)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -360,7 +435,8 @@ int32_t execute_next(void)
         update_nz_flags(rc);
         return 0;
     }
-    // ASRS
+
+    // ASR Rd, Rm
     else if (GET_BITS(inst, 15, 10) == 0b0100000100)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -373,7 +449,8 @@ int32_t execute_next(void)
         update_nz_flags(rc);
         return 0;
     }
-    // ADCS
+
+    // ADC Rd, Rm
     else if (GET_BITS(inst, 15, 10) == 0b0100000101)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -396,7 +473,8 @@ int32_t execute_next(void)
 
         return 0;
     }
-    // SBCS
+
+    // SBC Rd, Rm
     else if (GET_BITS(inst, 15, 10) == 0b0100000110)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -416,7 +494,8 @@ int32_t execute_next(void)
 
         return 0;
     }
-    // RORS
+
+    // ROR Rd, Rm
     else if (GET_BITS(inst, 15, 10) == 0b0100000111)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -431,7 +510,8 @@ int32_t execute_next(void)
 
         return 0;
     }
-    // TSTS
+
+    // TST Rd, Rm
     else if (GET_BITS(inst, 15, 10) == 0b0100001000)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -446,19 +526,13 @@ int32_t execute_next(void)
     }
 
     // todo: NEG is same as MVN??
-    // NEG
+    // NEG Rd, Rm
     else if (GET_BITS(inst, 15, 10) == 0b0100001001)
     {
-        uint8_t rd = GET_BITS(inst, 2, 3);
-        uint8_t rm = GET_BITS(inst, 5, 3);
-        uint32_t ra = cpu.reg[rm];
-        uint32_t rc = ~ra;
-        cpu.reg[rd] = rc;
-        
-        update_nz_flags(rc);
         return 0;
     }
-    // CMP
+
+    // CMP Rd, Rm
     else if (GET_BITS(inst, 15, 10) == 0b0100001010)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -476,7 +550,8 @@ int32_t execute_next(void)
         
         return 0;
     }
-    // CMN
+
+    // CMN Rd, Rm
     else if (GET_BITS(inst, 15, 10) == 0b0100001011)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -493,7 +568,8 @@ int32_t execute_next(void)
         
         return 0;
     }
-    // ORRS
+
+    // ORR Rd, Rm
     else if (GET_BITS(inst, 15, 10) == 0b0100001100)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -506,7 +582,8 @@ int32_t execute_next(void)
         update_nz_flags(rc);
         return 0;
     }
-    // MUL
+
+    // MUL Rd, Rm
     else if (GET_BITS(inst, 15, 10) == 0b0100001101)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -519,7 +596,8 @@ int32_t execute_next(void)
         update_nz_flags(rc);
         return 0;
     }
-    // BICS
+
+    // BIC Rd, Rm
     else if (GET_BITS(inst, 15, 10) == 0b0100001110)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -533,7 +611,7 @@ int32_t execute_next(void)
         return 0;
     }
 
-    // MVNS
+    // MVN Rd, Rm
     else if (GET_BITS(inst, 15, 10) == 0b0100001111)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -546,22 +624,22 @@ int32_t execute_next(void)
         return 0;
     }
 
-    // CPY // ???????
+    // CPY Rd, Rm // ???????
     else if (GET_BITS(inst, 15, 10) == 0b0100011000)
     {
         return 0;
     }
 
-    // ADD
+    // ADD Ld, Hm
     else if (GET_BITS(inst, 15, 10) == 0b0100010001)
     {
-        uint8_t rd = GET_BITS(inst, 2, 3);
+        uint8_t ld = GET_BITS(inst, 2, 3);
         uint8_t rm = GET_BITS(inst, 5, 3);
-        uint32_t ra = cpu.reg[rd];
+        uint32_t ra = cpu.reg[ld];
         uint32_t rb = cpu.reg[rm+8];
         
         ra += rb;
-        cpu.reg[rd] = ra;
+        cpu.reg[ld] = ra;
         
         update_nz_flags(ra);
         // TODO; CARRY, V FLAGS
@@ -572,7 +650,7 @@ int32_t execute_next(void)
         return 0;
     }
 
-    // MOV
+    // MOV Ld, Hm
     else if (GET_BITS(inst, 15, 10) == 0b0100011001)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -589,7 +667,7 @@ int32_t execute_next(void)
         return 0;
     }
 
-    // ADD
+    // ADD Hd, Lm
     else if (GET_BITS(inst, 15, 10) == 0b0100010010)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -609,7 +687,7 @@ int32_t execute_next(void)
         return 0;
     }
 
-    // MOV
+    // MOV Hd, Lm
     else if (GET_BITS(inst, 15, 10) == 0b0100011010)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -626,7 +704,7 @@ int32_t execute_next(void)
         return 0;
     }
 
-    // ADD
+    // ADD Hd, Hm
     else if (GET_BITS(inst, 15, 10) == 0b0100010011)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -646,7 +724,7 @@ int32_t execute_next(void)
         return 0;
     }
 
-    // MOV
+    // MOV Hd, Hm
     else if (GET_BITS(inst, 15, 10) == 0b0100011011)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -663,7 +741,9 @@ int32_t execute_next(void)
         return 0;
     }
 
-    // CMP
+
+    // note: CMP Rn, Rm == Rn-Rm
+    // CMP Ln, Hm
     else if (GET_BITS(inst, 15, 10) == 0b0100010101)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -682,7 +762,7 @@ int32_t execute_next(void)
         return 0;
     }
 
-    // CMP
+    // CMP Hn, Lm
     else if (GET_BITS(inst, 15, 10) == 0b0100010110)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -701,7 +781,7 @@ int32_t execute_next(void)
         return 0;
     }
 
-    // CMP
+    // CMP Hn, Hm
     else if (GET_BITS(inst, 15, 10) == 0b0100010111)
     {
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -720,7 +800,7 @@ int32_t execute_next(void)
         return 0;
     }
     
-    // BX
+    // BX Rm
     else if(GET_BITS(inst, 15, 9) == 0b010001110){
         uint8_t rm = GET_BITS(inst, 6, 4);
         PC = cpu.reg[rm];
@@ -728,7 +808,7 @@ int32_t execute_next(void)
         return 0;
     }
 
-    // BLX
+    // BLX Rm
     else if(GET_BITS(inst, 15, 9) == 0b010001111){
         uint8_t rm = GET_BITS(inst, 6, 4);
         LR = PC;
@@ -737,18 +817,22 @@ int32_t execute_next(void)
         return 0;
     }
 
-    // LDR
+    // LDR Ld, [ pc, immed * 4 ]
     else if (GET_BITS(inst, 15, 5) == 0b01001)
     {
         uint8_t rd = GET_BITS(inst, 10, 3);
         uint8_t immed = GET_BITS(inst, 7, 8);
         
-        cpu.reg[rd] = *(uint32_t*)(rom + PC + 4 * immed);
+        // printf("%x", (PC + 4 * immed));
+        // cpu.reg[rd] = *(uint32_t*)(rom + PC + 4 * immed);
         // printf("%x, %d -> %X, %x\n", PC,  rd, cpu.reg[rd], immed);
+
+        load_from_memory( &cpu.reg[rd], PC + immed * 4);
         return 0;
     }
 
-    // STR
+    // STR Rd, [Rn, Rm]
+    // store value in rd, in address rn+rm (see page 66)
     else if (GET_BITS(inst, 15, 7) == 0b0101000)
     {
         uint8_t rm = GET_BITS(inst, 8, 3);
@@ -757,17 +841,20 @@ int32_t execute_next(void)
 
         uint32_t addr = cpu.reg[rm] + cpu.reg[rn];
 
-        if(addr >= ROM_MIN && addr <= ROM_MAX)
-            rom[addr - ROM_MIN] = cpu.reg[rd];
-        else if(addr >= RAM_MIN && addr <= RAM_MAX)
-            ram[addr - RAM_MIN] = cpu.reg[rd];
-        else if(addr >= PER_MIN && addr <= PER_MAX)
-            return peripheral_write(addr, cpu.reg[rd]);
+        // if(addr >= ROM_MIN && addr <= ROM_MAX)
+        //     rom[addr - ROM_MIN] = cpu.reg[rd];
+        // else if(addr >= RAM_MIN && addr <= RAM_MAX)
+        //     ram[addr - RAM_MIN] = cpu.reg[rd];
+        // else if(addr >= PER_MIN && addr <= PER_MAX)
+        //     return peripheral_write(addr, cpu.reg[rd]);
+
+        store_to_memory( cpu.reg[rd], addr);
 
         return 0;
     }
 
-    // LDR
+    // LDR Rd, [Rn, Rm]
+    // load val in rn+rm into rd
     else if (GET_BITS(inst, 15, 7) == 0b0101100)
     {
         uint8_t rm = GET_BITS(inst, 8, 3);
@@ -776,17 +863,20 @@ int32_t execute_next(void)
 
         uint32_t addr = cpu.reg[rm] + cpu.reg[rn];
 
-        if(addr >= ROM_MIN && addr <= ROM_MAX)
-            cpu.reg[rd] = rom[addr - ROM_MIN];
-        else if(addr >= RAM_MIN && addr <= RAM_MAX)
-            cpu.reg[rd] = ram[addr - RAM_MIN];
-        else if(addr >= PER_MIN && addr <= PER_MAX)
-            return peripheral_read(addr, &cpu.reg[rd]);
+        // if(addr >= ROM_MIN && addr <= ROM_MAX)
+        //     cpu.reg[rd] = rom[addr - ROM_MIN];
+        // else if(addr >= RAM_MIN && addr <= RAM_MAX)
+        //     cpu.reg[rd] = ram[addr - RAM_MIN];
+        // else if(addr >= PER_MIN && addr <= PER_MAX)
+        //     return peripheral_read(addr, &cpu.reg[rd]);
+
+        load_from_memory( &cpu.reg[rd], addr);
 
         return 0;
     }
 
-    // STR
+    // STR Ld, [Ln, immed * 4]
+    // page 65
     else if (GET_BITS(inst, 15, 5) == 0b01100)
     {
         uint8_t immed = GET_BITS(inst, 10, 5);
@@ -795,74 +885,88 @@ int32_t execute_next(void)
 
         uint32_t addr = cpu.reg[rn] + 4 * immed;
 
-        if(addr >= ROM_MIN && addr <= ROM_MAX)
-            rom[addr - ROM_MIN] = cpu.reg[rd];
-        else if(addr >= RAM_MIN && addr <= RAM_MAX)
-            ram[addr - RAM_MIN] = cpu.reg[rd];
-        else if(addr >= PER_MIN && addr <= PER_MAX){
-            // printf("%X, %X\n", addr, cpu.reg[rd]);
-            return peripheral_write(addr, cpu.reg[rd]);
-        }
+        // if(addr >= ROM_MIN && addr <= ROM_MAX)
+        //     rom[addr - ROM_MIN] = cpu.reg[rd];
+        // else if(addr >= RAM_MIN && addr <= RAM_MAX)
+        //     ram[addr - RAM_MIN] = cpu.reg[rd];
+        // else if(addr >= PER_MIN && addr <= PER_MAX){
+        //     // printf("%X, %X\n", addr, cpu.reg[rd]);
+        //     return peripheral_write(addr, cpu.reg[rd]);
+        // }
+
+        store_to_memory( cpu.reg[rd], addr);
+
 
         return 0;
     }
 
-    // LDR
+    // LDR Ld, [Ln, immed*4 ]
+    // page 65
     else if (GET_BITS(inst, 15, 5) == 0b01101)
     {
         uint8_t immed = GET_BITS(inst, 10, 5);
         uint8_t rn = GET_BITS(inst, 5, 3);
         uint8_t rd = GET_BITS(inst, 2, 3);
 
-        uint32_t addr = cpu.reg[rn] + 4 * immed + 2;
+        uint32_t addr = cpu.reg[rn] + 4 * immed; // +2 ?????
 
-        if(addr >= ROM_MIN && addr <= ROM_MAX)
-            cpu.reg[rd] = rom[addr - ROM_MIN];
-        else if(addr >= RAM_MIN && addr <= RAM_MAX)
-            cpu.reg[rd] = ram[addr - RAM_MIN];
-        else if(addr >= PER_MIN && addr <= PER_MAX)
-            return peripheral_read(addr, &cpu.reg[rd]);
+        // if(addr >= ROM_MIN && addr <= ROM_MAX)
+        //     cpu.reg[rd] = rom[addr - ROM_MIN];
+        // else if(addr >= RAM_MIN && addr <= RAM_MAX)
+        //     cpu.reg[rd] = ram[addr - RAM_MIN];
+        // else if(addr >= PER_MIN && addr <= PER_MAX)
+        //     return peripheral_read(addr, &cpu.reg[rd]);
+
+        load_from_memory( &cpu.reg[rd], addr);
+
 
         return 0;
     }
 
-    // STR
+    // STR Ld, [sp, immed*4]
     else if (GET_BITS(inst, 15, 5) == 0b10010)
     {
         uint8_t rd = GET_BITS(inst, 10, 3);
         uint8_t immed = GET_BITS(inst, 7, 8);
 
-        uint32_t addr = SP + 4 * immed;
+        uint32_t addr = SP + immed * 4;
 
-        if(addr >= ROM_MIN && addr <= ROM_MAX)
-            rom[addr - ROM_MIN] = cpu.reg[rd];
-        else if(addr >= RAM_MIN && addr <= RAM_MAX)
-            ram[addr - RAM_MIN] = cpu.reg[rd];
-        else if(addr >= PER_MIN && addr <= PER_MAX)
-            return peripheral_write(addr, cpu.reg[rd]);
+        // if(addr >= ROM_MIN && addr <= ROM_MAX)
+        //     rom[addr - ROM_MIN] = cpu.reg[rd];
+        // else if(addr >= RAM_MIN && addr <= RAM_MAX)
+        //     ram[addr - RAM_MIN] = cpu.reg[rd];
+        // else if(addr >= PER_MIN && addr <= PER_MAX)
+        //     return peripheral_write(addr, cpu.reg[rd]);
+
+        store_to_memory( cpu.reg[rd], addr);
+
 
         return 0;
     }
 
-    // LDR
+    // LDR Ld, [sp, immed*4]
     else if (GET_BITS(inst, 15, 5) == 0b10011)
     {
         uint8_t rd = GET_BITS(inst, 10, 3);
         uint8_t immed = GET_BITS(inst, 7, 8);
 
-        uint32_t addr = SP + 4 * immed;
+        uint32_t addr = SP + immed * 4;
 
-        if(addr >= ROM_MIN && addr <= ROM_MAX)
-            cpu.reg[rd] = rom[addr - ROM_MIN];
-        else if(addr >= RAM_MIN && addr <= RAM_MAX)
-            cpu.reg[rd] = ram[addr - RAM_MIN];
-        else if(addr >= PER_MIN && addr <= PER_MAX)
-            return peripheral_read(addr, &cpu.reg[rd]);
+        // if(addr >= ROM_MIN && addr <= ROM_MAX)
+        //     cpu.reg[rd] = rom[addr - ROM_MIN];
+        // else if(addr >= RAM_MIN && addr <= RAM_MAX)
+        //     cpu.reg[rd] = ram[addr - RAM_MIN];
+        // else if(addr >= PER_MIN && addr <= PER_MAX)
+        //     return peripheral_read(addr, &cpu.reg[rd]);
+
+        load_from_memory( &cpu.reg[rd], addr);
+
 
         return 0;
     }
 
-    // ADD
+    // ADD Ld, pc, immed*4
+    // ld = pc + immed*4 (page 75)
     else if (GET_BITS(inst, 15, 5) == 0b10100)
     {
         uint8_t rd = GET_BITS(inst, 10, 3);
@@ -879,7 +983,7 @@ int32_t execute_next(void)
         return 0;
     }
 
-    // ADD
+    // ADD Ld, sp, immed * 4
     else if (GET_BITS(inst, 15, 5) == 0b10101)
     {
         uint8_t rd = GET_BITS(inst, 10, 3);
@@ -896,7 +1000,8 @@ int32_t execute_next(void)
         return 0;
     }
 
-    // ADD
+    // ADD sp, immed*4
+    // sp += immed * 4
     else if (GET_BITS(inst, 15, 9) == 0b101100000)
     {
         uint8_t immed = GET_BITS(inst, 6, 7);
@@ -911,7 +1016,7 @@ int32_t execute_next(void)
         return 0;
     }
 
-    // SUB
+    // SUB sp, immed*4
     else if (GET_BITS(inst, 15, 9) == 0b101100001)
     {
         uint8_t immed = GET_BITS(inst, 6, 7);
@@ -926,8 +1031,12 @@ int32_t execute_next(void)
         return 0;
     }
 
-    // PUSH
-    else if (GET_BITS(inst, 15, 7) == 0b1011010)
+
+    // NOTE: must be rewritten with new memory functions
+    // PUSH R, reglist
+    // reglist : one hot encoded [r7, r6 ... r0]
+    // R : include LR
+    else if (GET_BITS(inst, 15, 7) == 0b1011010) // NOTE: sp moves up or down? sp starts at ffffffff?
     {
         uint8_t r = GET_BITS(inst, 8, 1);
         uint8_t list = GET_BITS(inst, 7, 8);
@@ -947,7 +1056,10 @@ int32_t execute_next(void)
         SP = addr;
     }
 
-    // POP
+    // must be rewritten using new memory functions
+    // POP R, reglist
+    // reglist: [r7, r6, ... r0]
+    // R: include PC
     else if (GET_BITS(inst, 15, 7) == 0b1011110)
     {
         uint8_t r = GET_BITS(inst, 8, 1);
@@ -968,7 +1080,7 @@ int32_t execute_next(void)
         SP = addr;
     }
 
-    // B, COND
+    // B(Cond) inst_address + 4 + signed_offset * 2
     else if (GET_BITS(inst, 15, 4) == 0b1101 && GET_BITS(inst, 11, 4) < 0b1110) {
         uint8_t N = GET_BITS(FLG, FLG_N, 1);
         uint8_t Z = GET_BITS(FLG, FLG_Z, 1);
@@ -1024,23 +1136,23 @@ int32_t execute_next(void)
 
         if (should_branch == 1) {
             int8_t offset = GET_BITS(inst, 7, 8);
-            PC += offset * 2 + 2;
+            PC += offset * 2 + 2; // NOTE: +2 suspicious here. changed to +4. pc is "current instruction" or current pc?
         }
         return 0;
     }
 
-    // B, NO-COND
+    // B(NO COND) inst_address + 4 + signed_offset * 2
     else if (GET_BITS(inst, 15, 5) == 0b11100) {
         int16_t offset = GET_BITS(inst, 10, 11);
-        if(GET_BITS(inst, 10, 1) == 1){
+        if(GET_BITS(inst, 10, 1) == 1){ // NOTE: not tested
             offset <<= 5;
             offset >>= 5;
         }
-        PC += offset * 2 + 2;
+        PC += offset * 2 + 2; // NOTE: +2 changed to +4.
         return 0;
     }
 
-    // BLX
+    // BLX ( inst+4 + (poff<<12) + unsigned_offset*4 ) &~ 3
     else if(GET_BITS(inst, 15, 5) == 0b11101) {
         uint16_t offset = GET_BITS(inst, 10, 10);
 
@@ -1056,11 +1168,16 @@ int32_t execute_next(void)
         return 0;
     }
     
-    // BL
+
+    // NOTE: Not implemented
+    // "This is a branch prefix instruction. it must be followed by a relative bx, blx instruction."
+
+
+    // BL inst+4 + (poff<<12) + unsigned_offset*2
     else if(GET_BITS(inst, 15, 5) == 0b11111) {
         uint16_t offset = GET_BITS(inst, 10, 11);
 
-        uint16_t prev_inst = rom[PC - 6] | rom[PC - 1] << 8;
+        uint16_t prev_inst = rom[PC - 6] | rom[PC - 1] << 8; // NOTE: pc-1 here while pc-5 at blx ^^
         // if(GET_BITS(prev_inst, 15, 5) != 0b11110){
         //     return 1;
         //     // fprintf(stderr, "BL: previous instruction is not a branch prefix instruction 0x%08X  0x%04X 0x%04X\n", PC - 4, prev_inst, inst);
@@ -1069,7 +1186,7 @@ int32_t execute_next(void)
 
         int16_t poff = GET_BITS(prev_inst, 10, 11);
         LR = PC;
-        PC += 2 + (poff<<12) + offset*2;
+        PC += 2 + (poff<<12) + offset*2; // NOTE: +2 suspicious
         return 0;
     }
 
@@ -1082,7 +1199,7 @@ int32_t execute_next(void)
 
 void debug_dialog () {
     printf("%c[2J%c[1;1H", 27, 27);
-        printf("\n\nDebug instruction!\n");
+        printf("Debug instruction!\n");
         for (int i = 0; i<16; i++) {
             printf("R%d %s \t hex %x \n", i,
             i == 13 ? "(SP)" :
@@ -1094,9 +1211,9 @@ void debug_dialog () {
 
         uint32_t from, to;
         while(1) {
-            printf("%c[2J%c[1;1H", 27, 27);
+            // printf("%c[2J%c[1;1H", 27, 27);
             puts("\n\nPrint memory from xxxxxxxx to xxxxxxxx (hex)");
-            puts("To exit type 0-0");
+            puts("To go to the next instruction, type -");
             puts("eg. \"12fa0257-13000000\" ");
 
             scanf("%x-%x", &from, &to );
