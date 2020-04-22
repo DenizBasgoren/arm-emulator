@@ -55,8 +55,8 @@ typedef struct {
     int32_t cpsr;
 }tCPU;
 
-uint8_t rom[0x200000];
-uint8_t ram[0x100000];
+uint8_t rom[0x200000] = {0xFF};
+uint8_t ram[0x100000] = {0xFF};
 tCPU cpu;
 
 int32_t execute_next( int is_debug_mode );
@@ -75,7 +75,7 @@ int32_t main(int32_t argc, char* argv[])
         return(1);
     }
 
-    memset(rom, 0xFF, sizeof(rom));
+    // memset(rom, 0xFF, sizeof(rom));
 
     system_init();
 
@@ -92,16 +92,18 @@ int32_t main(int32_t argc, char* argv[])
 
     signal(SIGINT, sigint_handler);
 
-    memset(ram, 0xFF, sizeof(ram));
+    // memset(ram, 0xFF, sizeof(ram));
 
-    cpu.cpsr = 0;
+    FLG = 0;
 
-    cpu.reg[14] = 0xFFFFFFFF;
+    LR = 0xFFFFFFFF;
     //First 4 bytes in ROM specifies initializes the stack pointer
-    cpu.reg[13] = rom[0] | rom[1] << 8 | rom[2] << 16 | rom[3] << 24;
+    // cpu.reg[13] = rom[0] | rom[1] << 8 | rom[2] << 16 | rom[3] << 24;
+    load_from_memory( &SP, ROM_MIN);
     //Following 4 bytes in ROM initializes the PC
-    cpu.reg[15] = rom[4] | rom[5] << 8 | rom[6] << 16 | rom[7] << 24;
-    cpu.reg[15] += 2;
+    // cpu.reg[15] = rom[4] | rom[5] << 8 | rom[6] << 16 | rom[7] << 24;
+    load_from_memory( &PC, ROM_MIN+4);
+    PC += 2;
 
     int is_debug_mode = argc == 3 && !strcmp(argv[2], "-debug");
 
@@ -157,19 +159,28 @@ void load_from_memory(uint32_t *destination, uint32_t address) {
     // Adress must be divisible by 4. so, truncate last two bits.
     RESET_BIT(address, 0);
     RESET_BIT(address, 1);
+    
+    int base;
 
     if(address >= ROM_MIN && address <= ROM_MAX) {
-        *destination = 0xFF & rom[address - ROM_MIN];
-        *destination |= (0xFF & rom[address - ROM_MIN + 1]) << 8;
-        *destination |= (0xFF & rom[address - ROM_MIN + 2]) << 16;
-        *destination |= (uint32_t)(0xFF & rom[address - ROM_MIN + 3]) << 24;
+
+        base = address - ROM_MIN;
+
+        // *destination = 0xFF & rom[address - ROM_MIN];
+        // *destination |= (0xFF & rom[address - ROM_MIN + 1]) << 8;
+        // *destination |= (0xFF & rom[address - ROM_MIN + 2]) << 16;
+        // *destination |= (uint32_t)(0xFF & rom[address - ROM_MIN + 3]) << 24;
+        *destination = rom[base] | rom[base+1] << 8 | rom[base+2] << 16 | rom[base+3] << 24;
         
     }
     else if(address >= RAM_MIN && address <= RAM_MAX) {
-        *destination = 0xFF & ram[address - RAM_MIN];
-        *destination |= (0xFF & ram[address - RAM_MIN + 1]) << 8;
-        *destination |= (0xFF & ram[address - RAM_MIN + 2]) << 16;
-        *destination |= (uint32_t)(0xFF & ram[address - RAM_MIN + 3]) << 24;        
+        // *destination = 0xFF & ram[address - RAM_MIN];
+        // *destination |= (0xFF & ram[address - RAM_MIN + 1]) << 8;
+        // *destination |= (0xFF & ram[address - RAM_MIN + 2]) << 16;
+        // *destination |= (uint32_t)(0xFF & ram[address - RAM_MIN + 3]) << 24;  
+        base = address - RAM_MIN;   
+        *destination = ram[base] | ram[base+1] << 8 | ram[base+2] << 16 | ram[base+3] << 24;
+   
     }
     else if(address >= PER_MIN && address <= PER_MAX)
         peripheral_read(address, destination);
