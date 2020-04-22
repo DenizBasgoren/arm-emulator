@@ -55,8 +55,8 @@ typedef struct {
     int32_t cpsr;
 }tCPU;
 
-uint8_t rom[0x200000] = {0xFF};
-uint8_t ram[0x100000] = {0xFF};
+uint8_t rom[0x200000];
+uint8_t ram[0x100000];
 tCPU cpu;
 
 int32_t execute_next( int is_debug_mode );
@@ -75,7 +75,7 @@ int32_t main(int32_t argc, char* argv[])
         return(1);
     }
 
-    // memset(rom, 0xFF, sizeof(rom));
+    memset(rom, 0xFF, sizeof(rom));
 
     system_init();
 
@@ -92,7 +92,7 @@ int32_t main(int32_t argc, char* argv[])
 
     signal(SIGINT, sigint_handler);
 
-    // memset(ram, 0xFF, sizeof(ram));
+    memset(ram, 0xFF, sizeof(ram));
 
     FLG = 0;
 
@@ -331,7 +331,7 @@ int32_t execute_next( int is_debug_mode )
 
         cpu.reg[rd] = immed;
 
-        // nz flags?
+        // doesnt update nz!
         // todo: impl carry, overflo, conditions..
         return 0;
     }
@@ -536,10 +536,17 @@ int32_t execute_next( int is_debug_mode )
         return 0;
     }
 
-    // todo: NEG is same as MVN??
     // NEG Rd, Rm
+    // same as rd = ~rm + 1
     else if (GET_BITS(inst, 15, 10) == 0b0100001001)
     {
+        uint8_t rd = GET_BITS(inst, 2, 3);
+        uint8_t rm = GET_BITS(inst, 5, 3);
+        uint32_t ra = cpu.reg[rm];
+        uint32_t rc = ~ra+1;
+        cpu.reg[rd] = rc;
+        
+        update_nz_flags(rc);
         return 0;
     }
 
@@ -635,9 +642,16 @@ int32_t execute_next( int is_debug_mode )
         return 0;
     }
 
-    // CPY Rd, Rm // ???????
+    // CPY Rd, Rm
+    // same as mov rd, rm but doesnt affect nz
     else if (GET_BITS(inst, 15, 10) == 0b0100011000)
     {
+        uint8_t rd = GET_BITS(inst, 2, 3);
+        uint8_t rm = GET_BITS(inst, 5, 3);
+        uint32_t ra = cpu.reg[rm];
+        cpu.reg[rd] = ra;
+        
+        // update_nz_flags(ra);
         return 0;
     }
 
@@ -672,7 +686,7 @@ int32_t execute_next( int is_debug_mode )
         ra = rb;
         cpu.reg[rd] = ra;
         
-        update_nz_flags(ra);
+        // update_nz_flags(ra); doesnt update nz!
         // TODO; CARRY, V FLAGS
 
         return 0;
@@ -689,7 +703,7 @@ int32_t execute_next( int is_debug_mode )
         ra += rb;
         cpu.reg[rd+8] = ra;
         
-        update_nz_flags(ra);
+        // update_nz_flags(ra); // doesnt update nz!
         // TODO; CARRY, V FLAGS
 
         if ( 0xFFFFFFFF - ra < rb ) SET_BIT(FLG, FLG_C);
@@ -709,7 +723,7 @@ int32_t execute_next( int is_debug_mode )
         ra = rb;
         cpu.reg[rd+8] = ra;
         
-        update_nz_flags(ra);
+        // update_nz_flags(ra); // doesnt update nz
         // TODO; CARRY, V FLAGS
 
         return 0;
@@ -726,7 +740,7 @@ int32_t execute_next( int is_debug_mode )
         ra += rb;
         cpu.reg[rd+8] = ra;
         
-        update_nz_flags(ra);
+        // update_nz_flags(ra);
         // TODO; CARRY, V FLAGS
 
         if ( 0xFFFFFFFF - ra < rb ) SET_BIT(FLG, FLG_C);
@@ -746,7 +760,7 @@ int32_t execute_next( int is_debug_mode )
         ra = rb;
         cpu.reg[rd+8] = ra;
         
-        update_nz_flags(ra);
+        // update_nz_flags(ra);
         // TODO; CARRY, V FLAGS
 
         return 0;
