@@ -3,6 +3,7 @@
 
 #include <signal.h>
 #include <stdio.h>
+#include <time.h>
 
 #include "emulib.h"
 
@@ -97,12 +98,18 @@ int32_t main(int32_t argc, char* argv[])
     // on debug mode, execution breaks after every instruction
     int is_debug_mode = argc == 3 && !strcmp(argv[2], "-debug");
 
+    clock_t t = clock();
+
+    size_t n = 100000000;
     // main loop
-    while (1)
+    while (n > 0)
     {
         if (execute_next( is_debug_mode )) break;
+        n--;
     }
-
+    t = clock()-t;
+    double time_elapsed = ((double)(t))/CLOCKS_PER_SEC;
+    printf("Elapsed time: %f seconds\n", time_elapsed);
     // Free SDL
     system_deinit();
 
