@@ -1,8 +1,5 @@
-
-
-// TODO:
-// - Code documentation :c
-
+// Deniz Bashgoren  github.com/denizBasgoren
+// Cem Belentepe    github.com/theCCB
 
 #include <signal.h>
 #include <stdio.h>
@@ -10,14 +7,20 @@
 #include "emulib.h"
 
 // start (in order of documentation), offset ( number of bits from start to direction of 0)
+// GET_BITS( 010110, 3, 4 ) == 0110
 #define GET_BITS(bits, start, offset) (((bits) >> ((start) - (offset) + 1)) & ((1 << (offset)) - 1))
+
+// set a bit to 1 in given bits
 #define SET_BIT(bits, n) ((bits) |= (1 << (n)))
+
+// set a bit to 0 in given bits
 #define RESET_BIT(bits,b) ((bits) &= ~(1ULL<<(b)))
 
+// we will refer to values in registers by these shortcuts
 #define SP  (cpu.reg[13])
 #define LR  (cpu.reg[14])
 #define PC  (cpu.reg[15])
-#define FLG (cpu.cpsr)      // This register is called the Program Status Register
+#define FLG (cpu.cpsr) // flag register
 #define FLG_N (31)
 #define FLG_Z (30)
 #define FLG_C (29)
@@ -32,13 +35,13 @@
 #define PER_MAX 0x5FFFFFFF
 #define PER_MIN 0x40000000
 
-
-
+// registers
 typedef struct {
     int32_t reg[16];
     int32_t cpsr;
 }tCPU;
 
+// memory
 uint8_t rom[0x200000];
 uint8_t ram[0x100000];
 tCPU cpu;
@@ -61,39 +64,53 @@ int32_t main(int32_t argc, char* argv[])
         return(1);
     }
 
+    // fill rom with 1s
     memset(rom, 0xFF, sizeof(rom));
 
+    // init SDL
     system_init();
 
+    // load bytes to rom
     if (load_program(argv[1], rom) < 0) return 1;
 
-
+    // exit gracefully on ctrl+c
     signal(SIGINT, sigint_handler);
 
+    // init ram with 1s
     memset(ram, 0xFF, sizeof(ram));
 
+    // all flags 0.
+    // T flag should actually be 1, but we simply ignore it here, since cortex m0 supports thumb only
     FLG = 0;
 
     LR = 0xFFFFFFFF;
+
     //First 4 bytes in ROM specifies initializes the stack pointer
     load_from_memory( &SP, ROM_MIN);
+
     //Following 4 bytes in ROM initializes the PC
     load_from_memory( &PC, ROM_MIN+4);
+
+    // PC always points 4 bytes after current instruction.
     PC += 2;
 
+    // on debug mode, execution breaks after every instruction
     int is_debug_mode = argc == 3 && !strcmp(argv[2], "-debug");
 
+    // main loop
     while (1)
     {
         if (execute_next( is_debug_mode )) break;
     }
 
+    // Free SDL
     system_deinit();
 
-    return(0);
+    return 0;
 }
 
 
+// If zero, set Z. if ms bit = 1, set N
 void update_nz_flags(int32_t reg) {
     if(reg == 0) SET_BIT(FLG, FLG_Z);
     else RESET_BIT(FLG, FLG_Z);
@@ -174,13 +191,15 @@ int32_t execute_next( int is_debug_mode )
 {
     uint16_t inst = rom[PC - 2] | rom[PC - 1] << 8;
     PC += 2;
+    // at this point, PC = current inst + 4
 
     if (is_debug_mode) {
         printf("\n\nInstruction 0x%08X 0x%04X\n", PC - 4, inst);
         debug_dialog();
     }
     
-    // DEBUG INSTRUCTION == 1101 1110 0000 0000
+    // this bit sequence is invalid according to thumb isa, so we use it as impl-defined debug statement
+    // to include debug statement, put ".hword 0xde00" in your asm code
     if (inst == 0xde00) {
         debug_dialog();
         return 0;
@@ -799,6 +818,8 @@ int32_t execute_next( int is_debug_mode )
     // BLX Rm
     else if(GET_BITS(inst, 15, 9) == 0b010001111){
         uint8_t rm = GET_BITS(inst, 6, 4);
+
+        // here, temp is needed, because if cpu.reg[rm] == lr, we lose the value in lr
         uint32_t temp = PC;
         PC = cpu.reg[rm];
         LR = temp;
@@ -958,18 +979,17 @@ int32_t execute_next( int is_debug_mode )
     }
 
 
-    // NOTE: must be rewritten with new memory functions
     // PUSH R, reglist
     // reglist : one hot encoded [r7, r6 ... r0]
     // R : include LR
-    else if (GET_BITS(inst, 15, 7) == 0b1011010) // NOTE: sp moves up or down? sp starts at ffffffff?
+    else if (GET_BITS(inst, 15, 7) == 0b1011010)
     {
         uint8_t r = GET_BITS(inst, 8, 1);
         uint8_t list = GET_BITS(inst, 7, 8);
         uint32_t addr = SP;
 
         if(r == 1){
-            addr -= 4;
+            addr -= 4; // stack is full descending
             store_to_memory(LR, addr);
         }
 
@@ -983,7 +1003,6 @@ int32_t execute_next( int is_debug_mode )
         SP = addr;
     }
 
-    // must be rewritten using new memory functions
     // POP R, reglist
     // reglist: [r7, r6, ... r0]
     // R: include PC
@@ -1113,7 +1132,7 @@ int32_t execute_next( int is_debug_mode )
     // "This is a branch prefix instruction. it must be followed by a relative bx, blx instruction."
     else if(GET_BITS(inst, 15, 5) == 0b11110) {
         
-        // just ignore
+        // just ignore, and handle in bl,blx
         return 0;
     }
 
