@@ -970,12 +970,13 @@ int32_t execute_next( int is_debug_mode )
 
         if(r == 1){
             addr -= 4;
-            ram[addr] = LR;
+            store_to_memory(LR, addr);
         }
+
         for(int i = 7; i >= 0; i--){
             if((list & (1 << i)) != 0){
                 addr -= 4;
-                ram[addr] = cpu.reg[i];
+                store_to_memory( cpu.reg[i], addr);
             }
         }
 
@@ -994,12 +995,12 @@ int32_t execute_next( int is_debug_mode )
 
         for(int i = 0; i < 8; i++){
             if((list & (1 << i)) != 0){
-                ram[addr] = cpu.reg[i];
+                load_from_memory( &cpu.reg[i], addr);
                 addr += 4;
             }
         }
         if(r == 1){
-            ram[addr] = PC;
+            load_from_memory( &PC, addr);
             addr += 4;
         }
 
@@ -1062,6 +1063,12 @@ int32_t execute_next( int is_debug_mode )
 
         if (should_branch == 1) {
             int8_t offset = GET_BITS(inst, 7, 8);
+
+            // if negative address, fill left side with 1's
+            if(GET_BITS(inst, 7, 1) == 1){
+                offset <<= 8;
+                offset >>= 8;
+            }
             PC += offset * 2 + 2;
         }
         return 0;
@@ -1070,11 +1077,13 @@ int32_t execute_next( int is_debug_mode )
     // B(NO COND) inst_address + 4 + signed_offset * 2
     else if (GET_BITS(inst, 15, 5) == 0b11100) {
         int16_t offset = GET_BITS(inst, 10, 11);
-        if(GET_BITS(inst, 10, 1) == 1){ // ??
+
+        // if negative address, fill left side with 1's
+        if(GET_BITS(inst, 10, 1) == 1){
             offset <<= 5;
             offset >>= 5;
         }
-        PC += offset * 2 + 2;
+        PC += offset * 2 + 2; // +2 more will be added on the next cycle
         return 0;
     }
 
