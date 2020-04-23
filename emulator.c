@@ -1103,20 +1103,29 @@ int32_t execute_next( int is_debug_mode )
         return 0;
     }
     
-
-    // NOTE: Not implemented
     // "This is a branch prefix instruction. it must be followed by a relative bx, blx instruction."
-
+    else if(GET_BITS(inst, 15, 5) == 0b11110) {
+        
+        // just ignore
+        return 0;
+    }
 
     // BL inst+4 + (poff<<12) + unsigned_offset*2
     else if(GET_BITS(inst, 15, 5) == 0b11111) {
-        uint16_t offset = GET_BITS(inst, 10, 11);
+        int32_t offset = GET_BITS(inst, 10, 11);
 
-        uint16_t prev_inst = rom[PC - 6] | rom[PC - 1] << 8; // NOTE: pc-1 here while pc-5 at blx ^^
+        uint16_t prev_inst = rom[PC - 6] | rom[PC - 5] << 8;
 
-        int16_t poff = GET_BITS(prev_inst, 10, 11);
+        int32_t poff = GET_BITS(prev_inst, 10, 11);
+
+        // if negative address, fill left side with 1's
+        if(GET_BITS(poff, 10, 1) == 1){
+            poff <<= 21;
+            poff >>= 21;
+        }
+
         LR = PC;
-        PC += 2 + (poff<<12) + offset*2; // NOTE: +2 suspicious
+        PC += 2 + (poff<<12) + offset*2;
         return 0;
     }
 
