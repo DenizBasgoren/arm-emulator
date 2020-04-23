@@ -1,7 +1,6 @@
 
 
 // TODO:
-// - Branch prefix instruction
 // - Code documentation :c
 
 
@@ -800,8 +799,9 @@ int32_t execute_next( int is_debug_mode )
     // BLX Rm
     else if(GET_BITS(inst, 15, 9) == 0b010001111){
         uint8_t rm = GET_BITS(inst, 6, 4);
-        LR = PC;
-        PC += cpu.reg[rm];
+        uint32_t temp = PC;
+        PC = cpu.reg[rm];
+        LR = temp;
 
         return 0;
     }
@@ -1089,7 +1089,7 @@ int32_t execute_next( int is_debug_mode )
 
     // BLX ( inst+4 + (poff<<12) + unsigned_offset*4 ) &~ 3
     else if(GET_BITS(inst, 15, 5) == 0b11101) {
-        uint16_t offset = GET_BITS(inst, 10, 10);
+        int32_t offset = GET_BITS(inst, 10, 10);
 
         uint16_t prev_inst = rom[PC - 6] | rom[PC - 5] << 8;
         if(GET_BITS(prev_inst, 15, 5) != 0b11110){
@@ -1097,9 +1097,16 @@ int32_t execute_next( int is_debug_mode )
             return 1;
         }
 
-        int16_t poff = GET_BITS(prev_inst, 10, 11);
+        int32_t poff = GET_BITS(prev_inst, 10, 11);
+
+        // if negative address, fill left side with 1's
+        if(GET_BITS(poff, 10, 1) == 1){
+            poff <<= 21;
+            poff >>= 21;
+        }
+        
         LR = PC;
-        PC = (PC + 2 + (poff<<12) + offset*4) & ~3;
+        PC = (PC + (poff<<12) + offset*4) & ~3; // NOTE: -2, because offset is rel to prefix instruction, not this one
         return 0;
     }
     
@@ -1116,6 +1123,11 @@ int32_t execute_next( int is_debug_mode )
 
         uint16_t prev_inst = rom[PC - 6] | rom[PC - 5] << 8;
 
+        if(GET_BITS(prev_inst, 15, 5) != 0b11110){
+            fprintf(stderr, "BLX: previous instruction is not a branch prefix instruction 0x%08X  0x%04X\n", PC - 4, prev_inst);
+            return 1;
+        }
+
         int32_t poff = GET_BITS(prev_inst, 10, 11);
 
         // if negative address, fill left side with 1's
@@ -1125,7 +1137,7 @@ int32_t execute_next( int is_debug_mode )
         }
 
         LR = PC;
-        PC += 2 + (poff<<12) + offset*2;
+        PC += (poff<<12) + offset*2; // NOTE: -2, because offset is rel to prefix instruction, not this one
         return 0;
     }
 
@@ -1149,7 +1161,7 @@ void debug_dialog () {
         uint32_t from, to;
         while(1) {
             puts("\n\nPrint memory from xxxxxxxx to xxxxxxxx (hex)");
-            puts("To go to the next instruction, type -");
+            puts("To go to the next instruction, type 0-0");
             puts("eg. \"12fa0257-13000000\" ");
 
             scanf("%x-%x", &from, &to );
