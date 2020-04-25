@@ -156,16 +156,10 @@ void store_to_memory(uint32_t value, uint32_t address) {
     RESET_BIT(address, 1);
 
     if(address >= ROM_MIN && address <= ROM_MAX) {
-        rom[address - ROM_MIN+0] = GET_BITS(value, 32-1, 8);
-        rom[address - ROM_MIN+1] = GET_BITS(value, 24-1, 8);
-        rom[address - ROM_MIN+2] = GET_BITS(value, 16-1, 8);
-        rom[address - ROM_MIN+3] = GET_BITS(value, 8-1, 8);
+        *(uint32_t*)(rom + address - ROM_MIN) = value;
     }
     else if(address >= RAM_MIN && address <= RAM_MAX) {
-        ram[address - RAM_MIN+0] = GET_BITS(value, 32-1, 8);
-        ram[address - RAM_MIN+1] = GET_BITS(value, 24-1, 8);
-        ram[address - RAM_MIN+2] = GET_BITS(value, 16-1, 8);
-        ram[address - RAM_MIN+3] = GET_BITS(value, 8-1, 8);
+        *(uint32_t*)(rom + address - RAM_MIN) = value;
     }
     else if(address >= PER_MIN && address <= PER_MAX)
         peripheral_write(address, value);
@@ -182,11 +176,11 @@ void load_from_memory(uint32_t *destination, uint32_t address) {
 
     if(address >= ROM_MIN && address <= ROM_MAX) {
         base = address - ROM_MIN;
-        *destination = rom[base] | rom[base+1] << 8 | rom[base+2] << 16 | rom[base+3] << 24;
+        *destination = *(uint32_t*)(&rom[base]);
     }
     else if(address >= RAM_MIN && address <= RAM_MAX) { 
         base = address - RAM_MIN;   
-        *destination = ram[base] | ram[base+1] << 8 | ram[base+2] << 16 | ram[base+3] << 24;
+        *destination = *(uint32_t*)(&rom[base]);
     }
     else if(address >= PER_MIN && address <= PER_MAX)
         peripheral_read(address, destination);
@@ -1008,6 +1002,7 @@ int32_t execute_next( int is_debug_mode )
         }
 
         SP = addr;
+        return 0;
     }
 
     // POP R, reglist
@@ -1031,6 +1026,7 @@ int32_t execute_next( int is_debug_mode )
         }
 
         SP = addr;
+        return 0;
     }
 
     // B(Cond) inst_address + 4 + signed_offset * 2
