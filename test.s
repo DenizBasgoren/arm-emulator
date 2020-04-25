@@ -29,9 +29,7 @@ paint:
 		bne     nc
 		movs    r3, #0                //reset the column counter (move to the beginning of the row)
 		add     r2, r2, #1            //increment the row counter		
-		push 	{r1}
 		cmp     r2, #240                //check if we have reached the end of the screen
-		pop 	{r1}
 		bne     nr
 		movs    r2, #0                //reset the row counter and column counter (move to the beginning of the screen)		
 		movs    r3, #0                

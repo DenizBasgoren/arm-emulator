@@ -150,7 +150,7 @@ void sigint_handler() {
 
 
 void store_to_memory(uint32_t value, uint32_t address) {
-
+    printf("Storing %X to %X\n", value, address);
     // Adress must be divisible by 4. so, truncate last two bits.
     RESET_BIT(address, 0);
     RESET_BIT(address, 1);
@@ -159,7 +159,7 @@ void store_to_memory(uint32_t value, uint32_t address) {
         *(uint32_t*)(rom + address - ROM_MIN) = value;
     }
     else if(address >= RAM_MIN && address <= RAM_MAX) {
-        *(uint32_t*)(rom + address - RAM_MIN) = value;
+        *(uint32_t*)(ram + address - RAM_MIN) = value;
     }
     else if(address >= PER_MIN && address <= PER_MAX)
         peripheral_write(address, value);
@@ -167,6 +167,7 @@ void store_to_memory(uint32_t value, uint32_t address) {
 }
 
 void load_from_memory(uint32_t *destination, uint32_t address) {
+    printf("Loading from %X to %X\n", address, (void*)destination-(void*)cpu.reg);
 
     // Adress must be divisible by 4. so, truncate last two bits.
     RESET_BIT(address, 0);
@@ -180,7 +181,7 @@ void load_from_memory(uint32_t *destination, uint32_t address) {
     }
     else if(address >= RAM_MIN && address <= RAM_MAX) { 
         base = address - RAM_MIN;   
-        *destination = *(uint32_t*)(&rom[base]);
+        *destination = *(uint32_t*)(&ram[base]);
     }
     else if(address >= PER_MIN && address <= PER_MAX)
         peripheral_read(address, destination);
@@ -1197,7 +1198,7 @@ void debug_dialog () {
             }
             else if (from < RAM_MAX) {
                 for(; from <= to; from++) {
-                    printf("%x ", ram[from - RAM_MIN]);
+                    printf("%x->%x\n", from, ram[from - RAM_MIN]);
                 }
             }
             else {
