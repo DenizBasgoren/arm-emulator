@@ -98,11 +98,18 @@ int32_t main(int32_t argc, char* argv[])
     // on debug mode, execution breaks after every instruction
     int is_debug_mode = argc == 3 && !strcmp(argv[2], "-debug");
 
+    clock_t t = clock();
+
+    size_t n = 100000000;
     // main loop
-    while (1)
+    while (n > 0)
     {
         if (execute_next( is_debug_mode )) break;
+        // n--;
     }
+    t = clock()-t;
+    double time_elapsed = ((double)(t))/CLOCKS_PER_SEC;
+    printf("Elapsed time: %f seconds\n", time_elapsed);
     // Free SDL
     system_deinit();
 
@@ -114,7 +121,7 @@ int32_t main(int32_t argc, char* argv[])
 void update_nz_flags(int32_t reg) {
     if(reg == 0) SET_BIT(FLG, FLG_Z);
     else RESET_BIT(FLG, FLG_Z);
-    if (reg >= (1 << 31)) SET_BIT(FLG, FLG_N); // reg < 0 ?
+    if (reg < 0) SET_BIT(FLG, FLG_N); // reg < 0 ?
     else RESET_BIT(FLG, FLG_N);
 }
 
@@ -132,8 +139,8 @@ void update_vc_flags_in_subtraction(int32_t o1, int32_t o2, int32_t res) {
     else if (o1>0 && o2<0 && res<0) SET_BIT(FLG, FLG_V);
     else RESET_BIT(FLG, FLG_V);
 
-    if ( o1 - o2 < 0) SET_BIT(FLG, FLG_C);
-    RESET_BIT(FLG, FLG_C);
+    if ( o1 - o2 < 0) RESET_BIT(FLG, FLG_C);
+    else SET_BIT(FLG, FLG_C);
 }
 
 void sigint_handler() {
@@ -143,22 +150,16 @@ void sigint_handler() {
 
 
 void store_to_memory(uint32_t value, uint32_t address) {
-
+    // printf("Storing %X to %X\n", value, address);
     // Adress must be divisible by 4. so, truncate last two bits.
     RESET_BIT(address, 0);
     RESET_BIT(address, 1);
 
     if(address >= ROM_MIN && address <= ROM_MAX) {
-        rom[address - ROM_MIN+0] = GET_BITS(value, 32-1, 8);
-        rom[address - ROM_MIN+1] = GET_BITS(value, 24-1, 8);
-        rom[address - ROM_MIN+2] = GET_BITS(value, 16-1, 8);
-        rom[address - ROM_MIN+3] = GET_BITS(value, 8-1, 8);
+        *(uint32_t*)(rom + address - ROM_MIN) = value;
     }
     else if(address >= RAM_MIN && address <= RAM_MAX) {
-        ram[address - RAM_MIN+0] = GET_BITS(value, 32-1, 8);
-        ram[address - RAM_MIN+1] = GET_BITS(value, 24-1, 8);
-        ram[address - RAM_MIN+2] = GET_BITS(value, 16-1, 8);
-        ram[address - RAM_MIN+3] = GET_BITS(value, 8-1, 8);
+        *(uint32_t*)(ram + address - RAM_MIN) = value;
     }
     else if(address >= PER_MIN && address <= PER_MAX)
         peripheral_write(address, value);
@@ -166,6 +167,7 @@ void store_to_memory(uint32_t value, uint32_t address) {
 }
 
 void load_from_memory(uint32_t *destination, uint32_t address) {
+    // printf("Loading from %X to %X\n", address, (void*)destination-(void*)cpu.reg);
 
     // Adress must be divisible by 4. so, truncate last two bits.
     RESET_BIT(address, 0);
@@ -175,11 +177,11 @@ void load_from_memory(uint32_t *destination, uint32_t address) {
 
     if(address >= ROM_MIN && address <= ROM_MAX) {
         base = address - ROM_MIN;
-        *destination = rom[base] | rom[base+1] << 8 | rom[base+2] << 16 | rom[base+3] << 24;
+        *destination = *(uint32_t*)(&rom[base]);
     }
     else if(address >= RAM_MIN && address <= RAM_MAX) { 
         base = address - RAM_MIN;   
-        *destination = ram[base] | ram[base+1] << 8 | ram[base+2] << 16 | ram[base+3] << 24;
+        *destination = *(uint32_t*)(&ram[base]);
     }
     else if(address >= PER_MIN && address <= PER_MAX)
         peripheral_read(address, destination);
@@ -1001,6 +1003,7 @@ int32_t execute_next( int is_debug_mode )
         }
 
         SP = addr;
+        return 0;
     }
 
     // POP R, reglist
@@ -1024,6 +1027,7 @@ int32_t execute_next( int is_debug_mode )
         }
 
         SP = addr;
+        return 0;
     }
 
     // B(Cond) inst_address + 4 + signed_offset * 2
@@ -1084,10 +1088,10 @@ int32_t execute_next( int is_debug_mode )
             int8_t offset = GET_BITS(inst, 7, 8);
 
             // if negative address, fill left side with 1's
-            if(GET_BITS(inst, 7, 1) == 1){
-                offset <<= 8;
-                offset >>= 8;
-            }
+            // if(GET_BITS(inst, 7, 1) == 1){
+            //     offset <<= 8;
+            //     offset >>= 8;
+            // }
             PC += offset * 2 + 2;
         }
         return 0;
@@ -1165,42 +1169,50 @@ int32_t execute_next( int is_debug_mode )
 }
 
 
-void debug_dialog () {
+void debug_dialog () {    
+    uint16_t inst = rom[PC - 4] | rom[PC - 3] << 8;
+
     printf("%c[2J%c[1;1H", 27, 27);
-        printf("Debug instruction!\n");
-        for (int i = 0; i<16; i++) {
-            printf("R%d %s \t hex %x \n", i,
-            i == 13 ? "(SP)" :
-            i == 14 ? "(LR)" :
-            i == 15 ? "(PC)" : "",
-            cpu.reg[i]
-            );
+    printf("instruction 0x%08X 0x%04X\n", PC - 4, inst);
+    printf("Debug instruction!\n");
+    for (int i = 0; i<16; i++) {
+        printf("R%d %s \t hex %x \n", i,
+        i == 13 ? "(SP)" :
+        i == 14 ? "(LR)" :
+        i == 15 ? "(PC)" : "",
+        cpu.reg[i]
+        );
+    }
+
+    printf("FLG_N\t\t hex %x \n", GET_BITS(FLG, FLG_N, 1));
+    printf("FLG_Z\t\t hex %x \n", GET_BITS(FLG, FLG_Z, 1));
+    printf("FLG_C\t\t hex %x \n", GET_BITS(FLG, FLG_C, 1));
+    printf("FLG_V\t\t hex %x \n", GET_BITS(FLG, FLG_V, 1));
+
+    uint32_t from, to;
+    while(1) {
+        puts("\n\nPrint memory from xxxxxxxx to xxxxxxxx (hex)");
+        puts("To go to the next instruction, type 0-0");
+        puts("eg. \"12fa0257-13000000\" ");
+
+        scanf("%x-%x", &from, &to );
+        printf("Memory %x - %x (inclusive): (%d bytes)\n", from, to, to-from+1);
+
+        if (from == 0 && to == 0 ) break;
+        if (from < ROM_MAX) {
+            for (; from <= to; from++) {
+                printf("%x ", rom[from] );
+            }
+        }
+        else if (from < RAM_MAX) {
+            for(; from <= to; from++) {
+                printf("%x->%x\n", from, ram[from - RAM_MIN]);
+            }
+        }
+        else {
+            printf("instruction unclear");
         }
 
-        uint32_t from, to;
-        while(1) {
-            puts("\n\nPrint memory from xxxxxxxx to xxxxxxxx (hex)");
-            puts("To go to the next instruction, type 0-0");
-            puts("eg. \"12fa0257-13000000\" ");
-
-            scanf("%x-%x", &from, &to );
-            printf("Memory %x - %x (inclusive): (%d bytes)\n", from, to, to-from+1);
-
-            if (from == 0 && to == 0 ) break;
-            if (from < ROM_MAX) {
-                for (; from <= to; from++) {
-                    printf("%x ", rom[from] );
-                }
-            }
-            else if (from < RAM_MAX) {
-                for(; from <= to; from++) {
-                    printf("%x ", ram[from - RAM_MIN]);
-                }
-            }
-            else {
-                printf("instruction unclear");
-            }
-
-            printf("\n");
-        }
+        printf("\n");
+    }
 }
