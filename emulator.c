@@ -1,3 +1,5 @@
+
+// 26 april 2020, version 1
 // Deniz Bashgoren  github.com/denizBasgoren
 // Cem Belentepe    github.com/theCCB
 
@@ -47,6 +49,7 @@ uint8_t rom[0x200000];
 uint8_t ram[0x100000];
 tCPU cpu;
 
+// fps counters
 clock_t lastTime = 0;
 size_t n_inst_after_fps = 0;
 
@@ -65,7 +68,7 @@ int32_t main(int32_t argc, char* argv[])
     if (argc < 2)
     {
         puts("Usage: emulator path/to/arm_assembly.s [, -debug ]");
-        return(1);
+        return 1;
     }
 
     // fill rom with 1s
@@ -101,18 +104,12 @@ int32_t main(int32_t argc, char* argv[])
     // on debug mode, execution breaks after every instruction
     int is_debug_mode = argc == 3 && !strcmp(argv[2], "-debug");
 
-    clock_t t = clock();
-
-    size_t n = 100000000;
     // main loop
-    while (n > 0)
+    while (1)
     {
         if (execute_next( is_debug_mode )) break;
-        // n--;
     }
-    t = clock()-t;
-    double time_elapsed = ((double)(t))/CLOCKS_PER_SEC;
-    printf("Elapsed time: %f seconds\n", time_elapsed);
+    
     // Free SDL
     system_deinit();
 
@@ -120,11 +117,11 @@ int32_t main(int32_t argc, char* argv[])
 }
 
 
-// If zero, set Z. if ms bit = 1, set N
+// Flag updater functions
 void update_nz_flags(int32_t reg) {
     if(reg == 0) SET_BIT(FLG, FLG_Z);
     else RESET_BIT(FLG, FLG_Z);
-    if (reg < 0) SET_BIT(FLG, FLG_N); // reg < 0 ?
+    if (reg < 0) SET_BIT(FLG, FLG_N);
     else RESET_BIT(FLG, FLG_N);
 }
 
@@ -146,6 +143,7 @@ void update_vc_flags_in_subtraction(int32_t o1, int32_t o2, int32_t res) {
     else SET_BIT(FLG, FLG_C);
 }
 
+// ctrl+c handler
 void sigint_handler() {
     puts("Termination");
     exit(0);
@@ -153,10 +151,9 @@ void sigint_handler() {
 
 
 void store_to_memory(uint32_t value, uint32_t address) {
-    // printf("Storing %X to %X\n", value, address);
+
     // Adress must be divisible by 4. so, truncate last two bits.
-    RESET_BIT(address, 0);
-    RESET_BIT(address, 1);
+    address &= ~3;
 
     if(address >= ROM_MIN && address <= ROM_MAX) {
         *(uint32_t*)(rom + address - ROM_MIN) = value;
@@ -170,11 +167,8 @@ void store_to_memory(uint32_t value, uint32_t address) {
 }
 
 void load_from_memory(uint32_t *destination, uint32_t address) {
-    // printf("Loading from %X to %X\n", address, (void*)destination-(void*)cpu.reg);
-
     // Adress must be divisible by 4. so, truncate last two bits.
-    RESET_BIT(address, 0);
-    RESET_BIT(address, 1);
+    address &= ~3;
     
     int base;
 
@@ -193,7 +187,6 @@ void load_from_memory(uint32_t *destination, uint32_t address) {
 //Fetches an instruction from ROM, decodes and executes it
 int32_t execute_next( int is_debug_mode )
 {
-    n_inst_after_fps++;
     uint16_t inst = rom[PC - 2] | rom[PC - 1] << 8;
     PC += 2;
     // at this point, PC = current inst + 4
@@ -209,13 +202,18 @@ int32_t execute_next( int is_debug_mode )
         debug_dialog();
         return 0;
     }
+
+    // putting 0xde01 in your code triggers a fps counter. this block calculates fps from two consecutive
+    // 0xde01 calls. once in 60 triggers, fps count is printed on stdout
     else if (inst == 0xde01) {
+        n_inst_after_fps++;
+
         if(n_inst_after_fps >= 60)
         {
             clock_t curr = clock();
             double time_elapsed = ((double)(curr-lastTime))/CLOCKS_PER_SEC;
             lastTime = curr;
-            printf("FPS: %f\n", 1.0/time_elapsed);
+            printf("FPS: %f\n", 60.0/time_elapsed);
             n_inst_after_fps = 0;
         }
         return 0;
@@ -1182,6 +1180,10 @@ int32_t execute_next( int is_debug_mode )
 }
 
 
+
+// this gets called on every 0xde00 byte sequence in asm code.
+// it lets you see current register values, and memory contents.
+// for a per-instruction debugging mode, add -debug flag to args
 void debug_dialog () {    
     uint16_t inst = rom[PC - 4] | rom[PC - 3] << 8;
 
