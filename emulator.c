@@ -187,10 +187,12 @@ void load_from_memory(uint32_t *destination, uint32_t address) {
         peripheral_read(address, destination);
 }
 
-
+clock_t lastTime = 0;
+size_t t = 0;
 //Fetches an instruction from ROM, decodes and executes it
 int32_t execute_next( int is_debug_mode )
 {
+    t++;
     uint16_t inst = rom[PC - 2] | rom[PC - 1] << 8;
     PC += 2;
     // at this point, PC = current inst + 4
@@ -206,7 +208,17 @@ int32_t execute_next( int is_debug_mode )
         debug_dialog();
         return 0;
     }
-
+    else if (inst == 0xde01) {
+        if(t >= 60)
+        {
+            clock_t curr = clock();
+            double time_elapsed = ((double)(curr-lastTime))/CLOCKS_PER_SEC;
+            lastTime = curr;
+            printf("FPS: %f\n", 1.0/time_elapsed);
+            t = 0;
+        }
+        return 0;
+    }
 
     // LSL Rd, Rm, immed
     else if (GET_BITS(inst, 15, 5) == 0b00000) {
