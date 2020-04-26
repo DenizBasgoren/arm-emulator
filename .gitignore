@@ -11,3 +11,4 @@ MinGW/**
 armapp.bin
 armapp.elf
 armapp.o
+.vscode/settings.json

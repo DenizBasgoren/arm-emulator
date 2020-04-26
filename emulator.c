@@ -47,6 +47,9 @@ uint8_t rom[0x200000];
 uint8_t ram[0x100000];
 tCPU cpu;
 
+clock_t lastTime = 0;
+size_t n_inst_after_fps = 0;
+
 int32_t execute_next( int is_debug_mode );
 void update_nz_flags(int32_t reg);
 void update_vc_flags_in_addition(int32_t o1, int32_t o2, int32_t res);
@@ -187,12 +190,10 @@ void load_from_memory(uint32_t *destination, uint32_t address) {
         peripheral_read(address, destination);
 }
 
-clock_t lastTime = 0;
-size_t t = 0;
 //Fetches an instruction from ROM, decodes and executes it
 int32_t execute_next( int is_debug_mode )
 {
-    t++;
+    n_inst_after_fps++;
     uint16_t inst = rom[PC - 2] | rom[PC - 1] << 8;
     PC += 2;
     // at this point, PC = current inst + 4
@@ -209,13 +210,13 @@ int32_t execute_next( int is_debug_mode )
         return 0;
     }
     else if (inst == 0xde01) {
-        if(t >= 60)
+        if(n_inst_after_fps >= 60)
         {
             clock_t curr = clock();
             double time_elapsed = ((double)(curr-lastTime))/CLOCKS_PER_SEC;
             lastTime = curr;
             printf("FPS: %f\n", 1.0/time_elapsed);
-            t = 0;
+            n_inst_after_fps = 0;
         }
         return 0;
     }
