@@ -5,6 +5,7 @@ _main:
     bl init
 
     .game_loop:
+    // .hword 0xde00
     bl draw
     bl update
     b .game_loop
@@ -54,7 +55,7 @@ cells:            .word     0x20000000
 buffer:           .word     0x20005460
 rand1:            .word     1140671485
 rand2:            .word     12820163
-seed:             .word     1243
+seed:             .word     1539
 
 
 ////////////////////////////////////////
@@ -121,76 +122,90 @@ draw:
     bx lr
 
 
-
 update:
 	ldr		r0, =#0x20000000		// cell
 	ldr		r4, =#0x20005460		// next
-	ldr		r7, =#0x20005460		// next
-    add     r0, #132
-    add     r4, #132
-    sub     r7, #132
-    .check_neighbours:
-        mov     r1, #0                  // neighbours = 0
-        mov     r2, r0                  
-        
-        sub     r2, #132                 // goto top-left
-        ldr     r3, [r2]
-        add     r1, r3
 
-        add     r2, #4                  // goto top
-        ldr     r3, [r2]
-        add     r1, r3   
-        
-        add     r2, #4                  // goto top-right
-        ldr     r3, [r2]
-        add     r1, r3  
+    mov     r6, #1                  // i = 1
+    .check_neighbours_row:
+        mov     r7, #1              // j = 1
+        .check_neighbours_col:
+            mov     r9, r0
 
-        add     r2, #120                  // goto left
-        ldr     r3, [r2]
-        add     r1, r3  
-        
-        add     r2, #8                  // goto right
-        ldr     r3, [r2]
-        add     r1, r3  
+            mov     r2, #32
+            mul     r2, r6
+            add     r2, r7
+            mov     r0, #4
+            mul     r2, r0
+            
+            mov     r0, r9
+            // r0 start, r2 current pos
 
-        add     r2, #120                  // goto bot-left
-        ldr     r3, [r2]
-        add     r1, r3  
+            mov     r1, #0                  // neighbours = 0
+            
+            sub     r2, #132                 // goto top-left
+            ldr     r3, [r0, r2]
+            add     r1, r3
 
-        add     r2, #4                  // goto bottom
-        ldr     r3, [r2]
-        add     r1, r3   
-        
-        add     r2, #4                  // goto bot-right
-        ldr     r3, [r2]
-        add     r1, r3  
+            add     r2, #4                  // goto top
+            ldr     r3, [r0, r2]
+            add     r1, r3   
+            
+            add     r2, #4                  // goto top-right
+            ldr     r3, [r0, r2]
+            add     r1, r3  
 
-        // r1 is neighbours
-        ldr     r2, [r0]    // current
-        cmp     r2, #1
-        bne     .dead
-        // is alive will be dead
-        cmp     r1, #2
-        blt     .alive
-        cmp     r1, #3
-        ble     .else
-        .alive:
-        mov     r5, #0    // next = 0
-        b       .out
-        .dead:
-        cmp     r1, #3
-        bne     .else
-        mov     r5, #1
-        b       .out
-        .else:
-        mov     r5, r2
-        .out:
-        str     r4, [r5]
+            add     r2, #120                  // goto left
+            ldr     r3, [r0, r2]
+            add     r1, r3  
+            
+            add     r2, #8                  // goto right
+            ldr     r3, [r0, r2]
+            add     r1, r3  
 
-        add     r0, #4
-        add     r4, #4
-        cmp     r0, r7
-        blt     .check_neighbours
+            add     r2, #120                  // goto bot-left
+            ldr     r3, [r0, r2]
+            add     r1, r3  
+
+            add     r2, #4                  // goto bottom
+            ldr     r3, [r0, r2]
+            add     r1, r3   
+            
+            add     r2, #4                  // goto bot-right
+            ldr     r3, [r0, r2]
+            add     r1, r3  
+
+            // r1 is neighbours
+            sub     r2, #132
+            ldr     r3, [r0, r2]    // current
+            cmp     r3, #1
+            bne     .dead
+            // is alive will be dead
+            cmp     r1, #2
+            blt     .alive
+            cmp     r1, #3
+            ble     .else
+            .alive:
+            mov     r5, #0    // next = 0
+            b       .out
+            .dead:
+            cmp     r1, #3
+            bne     .else
+            mov     r5, #1
+            b       .out
+            .else:
+            mov     r5, r3
+            .out:
+            str     r5, [r4, r2]
+            // .hword  0xde00
+
+            add     r7, #1
+            cmp     r7, #31
+            blt     .check_neighbours_col
+        add     r6, #1
+        cmp     r6, #23
+        blt     .check_neighbours_row
+
 
 
     // Swap buffers
@@ -199,10 +214,12 @@ update:
 	mov     r2, r0                  // mem2_buff
     .copy_mem:
     ldr     r3, [r0]
-    str     r1, [r3]
+    str     r3, [r1]
     add     r0, #4
     add     r1, #4
     cmp     r1, r2
-    bne     .copy_mem
+    blt     .copy_mem
     
+    // .hword  0xde00
+
     bx lr
