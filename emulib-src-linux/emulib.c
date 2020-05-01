@@ -1,8 +1,8 @@
 #include "emulib.h"
 #include <SDL/SDL.h>
 
-#define SCREEN_WIDTH	320
-#define SCREEN_HEIGHT	240
+#define SCREEN_WIDTH	640
+#define SCREEN_HEIGHT	480
 
 static SDL_Surface *screen;
 static int32_t debug = 0;
