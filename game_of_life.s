@@ -19,7 +19,7 @@ init:
     // using the seed and random numbers, randomly fill the initial state of screen
     .set_pixel_randomly:
         ldr r0, seed                     // seed
-        ldr r1, =#1140671485             // rand1
+        ldr r1, =#1110671485             // rand1
         ldr r2, =#12820163               // rand2
 
         mul r0, r1                        // r0 *= r1

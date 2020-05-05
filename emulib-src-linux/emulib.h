@@ -15,6 +15,9 @@
 */
 int32_t load_program(char *path, uint8_t *rom);
 
+// Loads all png images located in img folder inside ram, and prints the addresses.
+int32_t load_images(uint8_t *ram);
+
 /* Initializes the system
    Return: 0 if successful, -1 if there is an error
 */

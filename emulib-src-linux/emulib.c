@@ -3,12 +3,16 @@
 
 #define SCREEN_WIDTH	320
 #define SCREEN_HEIGHT	240
+#define N_SLOTS			4
 
 static SDL_Surface *screen;
 static int32_t debug = 0;
 static int32_t xpos = 0;
 static int32_t ypos = 0;
 static uint32_t XBuf[SCREEN_WIDTH*SCREEN_HEIGHT];
+static uint8_t *ram_ptr;
+static uint8_t slot = 0;
+static uint32_t image_addresses[N_SLOTS];
 
 static void updateFrameBuffer(uint32_t *dstPtr, uint32_t *srcPtr);
 static int32_t setCursorX(int32_t x);
@@ -17,6 +21,10 @@ static void refresh();
 static void clean();
 static void writePixel(uint32_t color);
 static void readPixel(uint32_t *color);
+static void setSlot(uint32_t value);
+static void loadToSlot(uint32_t value);
+static void drawSlot(uint32_t value);
+static void readKeyboard(uint32_t value);
 
 static void updateFrameBuffer(uint32_t *dstPtr, uint32_t *srcPtr)
 {
@@ -77,6 +85,28 @@ static void clean()
 	refresh();
 }
 
+static void setSlot(uint32_t value) {
+	if ( value > N_SLOTS) {
+		printf("This gpu supports %d slots only (0-3).", N_SLOTS);
+		return -1;
+	}
+
+	slot = value;
+	return 0;
+}
+
+static void loadToSlot(uint32_t value) {
+	image_addresses[slot] = value;
+}
+
+static void drawSlot(uint32_t value) {
+	///
+}
+
+static void readKeyboard(uint32_t value) {
+	///
+}
+
 int32_t system_init()
 {
     if (SDL_Init(SDL_INIT_VIDEO) != 0)
@@ -93,6 +123,13 @@ int32_t system_init()
 void system_deinit()
 {
 	SDL_Quit();
+}
+
+int32_t load_images(uint8_t *ram) {
+	ram_ptr = ram;
+
+	// get images from img/ , decode png, calc w and h, put in ram
+	///
 }
 
 int32_t load_program(char *path, uint8_t *rom) {
@@ -149,14 +186,6 @@ int32_t load_program(char *path, uint8_t *rom) {
 	printf("Successfully assembled and loaded the program\n");
 	printf("Code size: %u bytes, instruction count: %u\n", len, len / 2);
 
-	// REMOVE BINARIES AFTER ROM LOAD
-	// sprintf(cmd, "rm ./armapp.*");
-	// if (system(cmd) != 0)
-	// {
-	// 	return -1;
-	// }
-	// END
-
 	return len;
 }
 
@@ -177,6 +206,15 @@ int32_t peripheral_write(uint32_t addr, uint32_t value)
 		case 0x40010010:
 			clean();
 			return 0;
+		case 0x40010014:
+			setSlot(value);
+			return 0;
+		case 0x40010018:
+			loadToSlot(value);
+			return 0;
+		case 0x4001001C:
+			drawSlot(value);
+			return 0;
 	}
 	return -1;
 }
@@ -189,6 +227,9 @@ int32_t peripheral_read(uint32_t addr, uint32_t *value)
 	{
 		case 0x4001000C:   //color register
 			readPixel(value);
+			return 0;
+		case 0x40010020:
+			readKeyboard(value);
 			return 0;
 	}
 	return -1;
