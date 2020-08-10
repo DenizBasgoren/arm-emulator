@@ -1,15 +1,23 @@
-#include "emulib.h"
-#include <SDL/SDL.h>
 
-#define SCREEN_WIDTH	640
-#define SCREEN_HEIGHT	480
+#include <SDL/SDL.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdint.h>
+
+#include "emulib.h"
+
+
+
+#define SCREEN_WIDTH	320
+#define SCREEN_HEIGHT	240
 
 static SDL_Surface *screen;
-static int32_t debug = 0;
 static int32_t xpos = 0;
 static int32_t ypos = 0;
 static uint32_t XBuf[SCREEN_WIDTH*SCREEN_HEIGHT];
 
+// prototypes
 static void updateFrameBuffer(uint32_t *dstPtr, uint32_t *srcPtr);
 static int32_t setCursorX(int32_t x);
 static int32_t setCursorY(int32_t y);
@@ -17,7 +25,10 @@ static void refresh();
 static void clean();
 static void writePixel(uint32_t color);
 static void readPixel(uint32_t *color);
+static void readKeyboard(uint32_t *value);
 
+
+// implementations
 static void updateFrameBuffer(uint32_t *dstPtr, uint32_t *srcPtr)
 {
     int32_t i, j;
@@ -33,8 +44,6 @@ static void updateFrameBuffer(uint32_t *dstPtr, uint32_t *srcPtr)
 
 static int32_t setCursorX(int32_t x)
 {
-	if (debug)
-		printf("Set cursor column to %d\n", x);
 	if (x < 0 || x >= SCREEN_WIDTH)
 		return -1;
 	xpos = x;
@@ -43,8 +52,6 @@ static int32_t setCursorX(int32_t x)
 
 static int32_t setCursorY(int32_t y)
 {
-	if (debug)
-		printf("Set cursor row to %d\n", y);
 	if (y < 0 || y >= SCREEN_HEIGHT)
 		return -1;
 	ypos = y;
@@ -77,6 +84,48 @@ static void clean()
 	refresh();
 }
 
+static void readKeyboard(uint32_t *value) {
+	
+	SDL_PumpEvents();
+
+	const uint8_t *state = (uint8_t*) SDL_GetKeyState(NULL);
+
+	*value = \
+		state[SDLK_a] << 31 |
+		state[SDLK_b] << 30 |
+		state[SDLK_c] << 29 |
+		state[SDLK_d] << 28 |
+		state[SDLK_e] << 27 |
+		state[SDLK_f] << 26 |
+		state[SDLK_g] << 25 |
+		state[SDLK_h] << 24 |
+		state[SDLK_i] << 23 |
+		state[SDLK_j] << 22 |
+		state[SDLK_k] << 21 |
+		state[SDLK_l] << 20 |
+		state[SDLK_m] << 19 |
+		state[SDLK_n] << 18 |
+		state[SDLK_o] << 17 |
+		state[SDLK_p] << 16 |
+		state[SDLK_q] << 15 |
+		state[SDLK_r] << 14 |
+		state[SDLK_s] << 13 |
+		state[SDLK_t] << 12 |
+		state[SDLK_u] << 11 |
+		state[SDLK_v] << 10 |
+		state[SDLK_w] << 9 |
+		state[SDLK_x] << 8 |
+		state[SDLK_y] << 7 |
+		state[SDLK_z] << 6 |
+		state[SDLK_UP] << 5 |
+		state[SDLK_RIGHT] << 4 |
+		state[SDLK_DOWN] << 3 |
+		state[SDLK_LEFT] << 2 |
+		state[SDLK_SPACE] << 1 |
+		state[SDLK_ESCAPE];
+}
+
+
 int32_t system_init()
 {
     if (SDL_Init(SDL_INIT_VIDEO) != 0)
@@ -95,69 +144,85 @@ void system_deinit()
 	SDL_Quit();
 }
 
-int32_t load_program(char *path, uint8_t *rom) {
+
+int32_t load_program(char *path, uint8_t *rom, uint8_t *ram) {
 	FILE *infile;
 	uint32_t len;
+	int32_t errorCode = 0;
 	char cmd[512];
 
-	if (rom == NULL)
+	if (rom == NULL || ram == NULL)
 	{
-		printf("Invalid ROM memory pointer, please supply one!\n");
 		return -1;
 	}
-
-	printf("Input program:");
-	printf("%s", path);
-
-	printf("\nAssembling...\n");
 
 	sprintf(cmd, "arm-none-eabi-as -mcpu=cortex-m0 -mthumb %s -o armapp.o", path);
 	if (system(cmd) != 0)
 	{
-		return -1;
+		errorCode = -1;
+		goto cleanup1;
 	}
-
-	printf("\nLinking...\n");
 
 	sprintf(cmd, "arm-none-eabi-ld -T linker.ld armapp.o -o armapp.elf");
 	if (system(cmd) != 0)
 	{
-		return -1;
+		errorCode = -1;
+		goto cleanup1;
 	}
 
-	printf("Generating binary...\n");
-
-	sprintf(cmd, "arm-none-eabi-objcopy -O binary armapp.elf armapp.bin");
+	sprintf(cmd, "arm-none-eabi-objcopy -O binary -j .text armapp.elf text.bin");
 	if (system(cmd) != 0)
 	{
-		return -1;
+		errorCode = -1;
+		goto cleanup1;
 	}
 
-	infile = fopen("armapp.bin", "rb");
+	sprintf(cmd, "arm-none-eabi-objcopy -O binary -j .data armapp.elf data.bin");
+	if (system(cmd) != 0)
+	{
+		errorCode = -1;
+		goto cleanup1;
+	}
+
+	// load text to rom
+	infile = fopen("text.bin", "rb");
 	fseek(infile, 0, SEEK_END);
 	len = ftell(infile);
 	fseek(infile, 0, SEEK_SET);
 
 	if (fread(rom, 1, len, infile) != len)
 	{
-		printf("Assembled file read error!\n");
-		fclose(infile);
-		return -1;
+		errorCode = -1;
+		goto cleanup2;
+	}
+	fclose(infile);
+
+
+	// load data to ram
+	infile = fopen("data.bin", "rb");
+	fseek(infile, 0, SEEK_END);
+	len = ftell(infile);
+	fseek(infile, 0, SEEK_SET);
+
+	if (fread(ram, 1, len, infile) != len)
+	{
+		errorCode = -1;
+		goto cleanup2;
 	}
 
+	printf("Assembled successfully!\n");
+
+	cleanup1:
 	fclose(infile);
-	printf("Successfully assembled and loaded the program\n");
-	printf("Code size: %u bytes, instruction count: %u\n", len, len / 2);
 
-	// REMOVE BINARIES AFTER ROM LOAD
-	// sprintf(cmd, "rm ./armapp.*");
-	// if (system(cmd) != 0)
-	// {
-	// 	return -1;
-	// }
-	// END
+	cleanup2:
+	#if defined(__unix__)
+		system("rm armapp.o text.bin data.bin");
+	#elif defined(_WIN32) || defined(_WIN64)
+		system("del armapp.o text.bin data.bin");
+	#endif
 
-	return len;
+	return errorCode;
 }
 
 int32_t peripheral_write(uint32_t addr, uint32_t value)
@@ -190,11 +255,9 @@ int32_t peripheral_read(uint32_t addr, uint32_t *value)
 		case 0x4001000C:   //color register
 			readPixel(value);
 			return 0;
+		case 0x40010020:
+			readKeyboard(value);
+			return 0;
 	}
 	return -1;
-}
-
-void set_debug(int32_t enable)
-{
-	debug = enable;
 }

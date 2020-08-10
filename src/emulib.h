@@ -1,7 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
 #include <stdint.h>
 
 /*
@@ -13,7 +9,7 @@
       On return with success, the function returns 0 and memory pointed by rom 
 	  is filled with assembled file contents
 */
-int32_t load_program(char *path, uint8_t *rom);
+int32_t load_program(char *path, uint8_t *rom, uint8_t *ram);
 
 /* Initializes the system
    Return: 0 if successful, -1 if there is an error

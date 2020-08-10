@@ -1,24 +1,26 @@
-initial_sp:        .word    0x3FFFFFFF
+initial_sp:        .word    0x200FFFFF
 reset_vector:     .word     _main
 
 _main:
     bl init
 
     .game_loop:
-    // .hword 0xde00
     bl draw
     bl update
+    .hword 0xde01 // fps counter
     b .game_loop
+
+
 
 /////////////////////////////////////////////////
 init:
     ldr r4, cells                        // cells
 
+    // using the seed and random numbers, randomly fill the initial state of screen
     .set_pixel_randomly:
-        //.hword 0xde00
         ldr r0, seed                     // seed
-        ldr r1, rand1                    // rand1
-        ldr r2, rand2                    // rand2
+        ldr r1, =#1140671485             // rand1
+        ldr r2, =#12820163               // rand2
 
         mul r0, r1                        // r0 *= r1
         add r0, r2                        // r0 += r2
@@ -42,20 +44,16 @@ init:
         .move_onto_next_cell:
         add r4, #4
 
-        ldr r1, buffer
+        ldr r1, =0x20003000
         cmp r4, r1
         bcc .set_pixel_randomly
     bx lr
 
-
-
-// cells (current)
 .balign 4
 cells:            .word     0x20000000
-buffer:           .word     0x20005460
-rand1:            .word     1140671485
-rand2:            .word     12820163
-seed:             .word     1558
+seed:             .word     161600
+
+
 
 
 ////////////////////////////////////////
@@ -65,8 +63,8 @@ draw:
 	.each_row_in_cells:
         mov     r2, #0                  // j
         .each_colum_in_cells:
-            // draw 10x10 pixel to position r3=r1*10, r4=r2*10
-            mov     r5, #10
+            // draw 5x5 pixel to position r3=r1*10, r4=r2*10
+            mov     r5, #5
             mov     r3, r1
             mul     r3, r5      // start index_row
             mov     r4, r2
@@ -97,24 +95,22 @@ draw:
                     str     r4, [r5, #0x4]  // col
                     str     r1, [r5, #0x8]  // write the color
                     add     r4, #1          // col++
-                    // .hword  0xde00
                     add     r7, #1
-                    cmp     r7, #9
+                    cmp     r7, #4
                     blt     .each_colum
                 add     r6, #1
-                cmp     r6, #9
+                cmp     r6, #4
                 blt     .each_row
-            //////////////////////////////////////////////////////
 
             mov     r1, r8
             mov     r2, r9
 
             add     r0, #4
             add     r2, #1
-            cmp     r2, #32
+            cmp     r2, #64
             blt     .each_colum_in_cells
         add     r1, #1
-        cmp     r1, #24
+        cmp     r1, #48
         blt     .each_row_in_cells
 
     ldr     r5, =0x40010000     // peripheral
@@ -122,9 +118,13 @@ draw:
     bx lr
 
 
+
+
+
+////////////////////////////////////////////////
 update:
 	ldr		r0, =#0x20000000		// cell
-	ldr		r4, =#0x20005460		// next
+	ldr		r4, =#0x20003000		// next
 
     mov     r6, #1                  // i = 1
     .check_neighbours_row:
@@ -132,7 +132,7 @@ update:
         .check_neighbours_col:
             mov     r9, r0
 
-            mov     r2, #32
+            mov     r2, #64
             mul     r2, r6
             add     r2, r7
             mov     r0, #4
@@ -143,7 +143,8 @@ update:
 
             mov     r1, #0                  // neighbours = 0
             
-            sub     r2, #132                 // goto top-left
+            sub     r2, #200                 // goto top-left
+            sub     r2, #60                 // goto top-left
             ldr     r3, [r0, r2]
             add     r1, r3
 
@@ -155,7 +156,7 @@ update:
             ldr     r3, [r0, r2]
             add     r1, r3  
 
-            add     r2, #120                  // goto left
+            add     r2, #248                 // goto left
             ldr     r3, [r0, r2]
             add     r1, r3  
             
@@ -163,7 +164,7 @@ update:
             ldr     r3, [r0, r2]
             add     r1, r3  
 
-            add     r2, #120                  // goto bot-left
+            add     r2, #248                  // goto bot-left
             ldr     r3, [r0, r2]
             add     r1, r3  
 
@@ -176,7 +177,8 @@ update:
             add     r1, r3  
 
             // r1 is neighbours
-            sub     r2, #132
+            sub     r2, #200
+            sub     r2, #60
             ldr     r3, [r0, r2]    // current
             cmp     r3, #1
             bne     .dead
@@ -197,29 +199,27 @@ update:
             mov     r5, r3
             .out:
             str     r5, [r4, r2]
-            // .hword  0xde00
 
             add     r7, #1
-            cmp     r7, #31
+            cmp     r7, #63
             blt     .check_neighbours_col
         add     r6, #1
-        cmp     r6, #23
+        cmp     r6, #47
         blt     .check_neighbours_row
 
 
 
-    // Swap buffers
-	ldr		r0, =#0x20005460		// mem1 -> r0
+    // Copy from temp buffer to the main cells state space
+	ldr		r0, =#0x20003000		// mem1 -> r0
 	ldr		r1, =#0x20000000		// mem2 -> r1
-	ldr		r2, =#0x20000c00
-    .copy_mem:
-    ldr     r3, [r0]
-    str     r3, [r1]
-    add     r0, #4
-    add     r1, #4
-    cmp     r1, r2
-    blt     .copy_mem
-    
-    // .hword  0xde00
+    ldr		r2, =#0x20003000        // max of r1
 
+    .copy_mem:
+        ldr     r3, [r0]
+        str     r3, [r1]
+        add     r0, #4
+        add     r1, #4
+        cmp     r1, r2
+        blt     .copy_mem
+    
     bx lr

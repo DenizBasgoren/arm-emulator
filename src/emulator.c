@@ -5,6 +5,8 @@
 
 #include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <time.h>
 
 #include "emulib.h"
@@ -20,6 +22,19 @@
 #define RESET_BIT(bits,b) ((bits) &= ~(1ULL<<(b)))
 
 // we will refer to values in registers by these shortcuts
+#define R0  (cpu.reg[0])
+#define R1  (cpu.reg[1])
+#define R2  (cpu.reg[2])
+#define R3  (cpu.reg[3])
+#define R4  (cpu.reg[4])
+#define R5  (cpu.reg[5])
+#define R6  (cpu.reg[6])
+#define R7  (cpu.reg[7])
+#define R8  (cpu.reg[8])
+#define R9  (cpu.reg[9])
+#define R10  (cpu.reg[10])
+#define R11  (cpu.reg[11])
+#define R12  (cpu.reg[12])
 #define SP  (cpu.reg[13])
 #define LR  (cpu.reg[14])
 #define PC  (cpu.reg[15])
@@ -73,18 +88,17 @@ int32_t main(int32_t argc, char* argv[])
 
     // fill rom with 1s
     memset(rom, 0xFF, sizeof(rom));
-
+    memset(ram, 0xFF, sizeof(ram));
+    
     // init SDL
     system_init();
 
     // load bytes to rom
-    if (load_program(argv[1], rom) < 0) return 1;
+    if (load_program(argv[1], rom, ram) < 0) return 1;
 
     // exit gracefully on ctrl+c
     signal(SIGINT, sigint_handler);
 
-    // init ram with 1s
-    memset(ram, 0xFF, sizeof(ram));
 
     // all flags 0.
     // T flag should actually be 1, but we simply ignore it here, since cortex m0 supports thumb only
@@ -145,7 +159,14 @@ void update_vc_flags_in_subtraction(int32_t o1, int32_t o2, int32_t res) {
 
 // ctrl+c handler
 void sigint_handler() {
-    puts("Termination");
+    puts("\nTermination");
+
+    #if defined(__unix__)
+		system("rm armapp.elf");
+	#elif defined(_WIN32) || defined(_WIN64)
+		system("del armapp.elf");
+	#endif
+    
     exit(0);
 }
 
@@ -243,7 +264,7 @@ int32_t execute_next( int is_debug_mode )
     }
 
     // LSR Rd, Rm, immed
-    else if (GET_BITS(inst, 15, 5) == 0b00000) {
+    else if (GET_BITS(inst, 15, 5) == 0b00001) {
         uint8_t immed = GET_BITS(inst, 10, 5);
         uint8_t rm = GET_BITS(inst, 5, 3);
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -1098,11 +1119,6 @@ int32_t execute_next( int is_debug_mode )
         if (should_branch == 1) {
             int8_t offset = GET_BITS(inst, 7, 8);
 
-            // if negative address, fill left side with 1's
-            // if(GET_BITS(inst, 7, 1) == 1){
-            //     offset <<= 8;
-            //     offset >>= 8;
-            // }
             PC += offset * 2 + 2;
         }
         return 0;
@@ -1186,48 +1202,106 @@ int32_t execute_next( int is_debug_mode )
 // for a per-instruction debugging mode, add -debug flag to args
 void debug_dialog () {    
     uint16_t inst = rom[PC - 4] | rom[PC - 3] << 8;
+    uint8_t N = GET_BITS(FLG, FLG_N, 1);
+    uint8_t Z = GET_BITS(FLG, FLG_Z, 1);
+    uint8_t C = GET_BITS(FLG, FLG_C, 1);
+    uint8_t V = GET_BITS(FLG, FLG_V, 1);
 
-    printf("%c[2J%c[1;1H", 27, 27);
-    printf("instruction 0x%08X 0x%04X\n", PC - 4, inst);
-    printf("Debug instruction!\n");
-    for (int i = 0; i<16; i++) {
-        printf("R%d %s \t hex %x \n", i,
-        i == 13 ? "(SP)" :
-        i == 14 ? "(LR)" :
-        i == 15 ? "(PC)" : "",
-        cpu.reg[i]
-        );
+    puts("\x1b[2J\x1b[1;1H");
+    puts("Debug instruction!");
+
+    if(GET_BITS(inst, 15, 5) == 0b11110) {
+        puts("Note: This is a branch prefix instruction");
     }
 
-    printf("FLG_N\t\t hex %x \n", GET_BITS(FLG, FLG_N, 1));
-    printf("FLG_Z\t\t hex %x \n", GET_BITS(FLG, FLG_Z, 1));
-    printf("FLG_C\t\t hex %x \n", GET_BITS(FLG, FLG_C, 1));
-    printf("FLG_V\t\t hex %x \n", GET_BITS(FLG, FLG_V, 1));
+    printf("Next instruction: 0x%04x @ 0x%08x \n\n", inst, PC - 4);
+
+    #define GREEN_TERM "\x1b[32m"
+    #define WHITE_TERM "\x1b[97m"
+    #define GRAY_TERM "\x1b[37m"
+
+    printf(GREEN_TERM);
+    puts("R0 (hex)\tR1 (hex)\tR2 (hex)\tR3 (hex)");
+    printf(WHITE_TERM);
+    printf("%-8x\t%-8x\t%-8x\t%-8x\n", R0, R1, R2, R3);
+
+    printf(GREEN_TERM);
+    puts("R4 (hex)\tR5 (hex)\tR6 (hex)\tR7 (hex)");
+    printf(WHITE_TERM);
+    printf("%-8x\t%-8x\t%-8x\t%-8x\n", R4, R5, R6, R7);
+
+    printf(GREEN_TERM);
+    puts("R8 (hex)\tR9 (hex)\tR10 (hex)\tR11 (hex)");
+    printf(WHITE_TERM);
+    printf("%-8x\t%-8x\t%-8x\t%-8x\n", R8, R9, R10, R11);
+
+    printf(GREEN_TERM);
+    puts("R12 (hex)\tSP (hex)\tLR (hex)\tPC (hex)");
+    printf(WHITE_TERM);
+    printf("%-8x\t%-8x\t%-8x\t%-8x\n", R12, SP, LR, PC);
+
+    printf(GREEN_TERM);
+    puts("FLG_N (hex)\tFLG_Z (hex)\tFLG_C (hex)\tFLG_V (hex)");
+    printf(WHITE_TERM);
+    printf("%-8x\t%-8x\t%-8x\t%-8x\n", N, Z, C, V);
 
     uint32_t from, to;
+    debug_loop:
     while(1) {
-        puts("\n\nPrint memory from xxxxxxxx to xxxxxxxx (hex)");
-        puts("To go to the next instruction, type 0-0");
-        puts("eg. \"12fa0257-13000000\" ");
+        printf(GRAY_TERM);
+        puts("\n\nTo print memory from 100 to 200 (hex), type 100-200");
+        puts("To continue to program, type q");
+        puts("To disassemble, type d");
+        printf(WHITE_TERM);
 
-        scanf("%x-%x", &from, &to );
-        printf("Memory %x - %x (inclusive): (%d bytes)\n", from, to, to-from+1);
+        char input_string[100];
 
-        if (from == 0 && to == 0 ) break;
-        if (from < ROM_MAX) {
-            for (; from <= to; from++) {
-                printf("%x ", rom[from] );
+        scanf("%s", input_string);
+        if ( *input_string == 'q') {
+            puts("Exited debug mode");
+            break;
+        }
+        else if ( *input_string == 'd') {
+            system("arm-none-eabi-objdump -d armapp.elf");
+            continue;
+        }
+
+        sscanf(input_string, "%x-%x", &from, &to );
+        printf("Memory %x - %x (inclusive): (%d bytes)\n\n", from, to, to-from+1);
+        printf(GREEN_TERM);
+
+        int temp = 0;
+
+        for (; from <= to; from++, temp++) {
+
+            uint8_t val;
+            // get val
+            if (from < ROM_MAX) val = rom[from];
+            else if (from < RAM_MAX) val = ram[from - RAM_MIN];
+            else {
+                puts("Not in ROM or RAM.");
+                goto debug_loop;
             }
-        }
-        else if (from < RAM_MAX) {
-            for(; from <= to; from++) {
-                printf("%x->%x\n", from, ram[from - RAM_MIN]);
+
+            if ( from % 8 == 0) {
+                temp = 0;
             }
-        }
-        else {
-            printf("instruction unclear");
+
+            if ( temp % 8 == 0) {
+                printf(GREEN_TERM);
+                printf("\n%08x\t", from);
+                printf(WHITE_TERM);
+            }
+            
+            printf("%02x", val);
+            printf(GRAY_TERM);
+            if (val > 31 && val < 177)
+            printf("'%01c'  ", val );
+            else printf("     ");
+            printf(WHITE_TERM);
+
         }
 
-        printf("\n");
+        puts(WHITE_TERM);
     }
 }
