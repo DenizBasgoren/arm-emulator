@@ -74,8 +74,8 @@ void update_vc_flags_in_addition(int32_t o1, int32_t o2, int32_t res);
 void update_vc_flags_in_subtraction(int32_t o1, int32_t o2, int32_t res);
 void debug_dialog();
 void sigint_handler();
-void store_to_memory(uint32_t value, uint32_t address);
-void load_from_memory(uint32_t *destination, uint32_t address);
+void store_to_memory(uint32_t value, uint32_t address, int n_bytes);
+void load_from_memory(uint32_t *destination, uint32_t address, int n_bytes);
 
 //Emulator main function
 int32_t main(int32_t argc, char* argv[])
@@ -107,10 +107,10 @@ int32_t main(int32_t argc, char* argv[])
     LR = 0xFFFFFFFF;
 
     //First 4 bytes in ROM specifies initializes the stack pointer
-    load_from_memory( &SP, ROM_MIN);
+    load_from_memory( &SP, ROM_MIN, 4);
 
     //Following 4 bytes in ROM initializes the PC
-    load_from_memory( &PC, ROM_MIN+4);
+    load_from_memory( &PC, ROM_MIN+4, 4);
 
     // PC always points 4 bytes after current instruction.
     PC += 2;
@@ -171,35 +171,41 @@ void sigint_handler() {
 }
 
 
-void store_to_memory(uint32_t value, uint32_t address) {
+void store_to_memory(uint32_t value, uint32_t address, int n_bytes) {
 
-    // Adress must be divisible by 4. so, truncate last two bits.
-    address &= ~3;
+    // Adress must be aligned
+    address &= ~(n_bytes-1);
 
     if(address >= ROM_MIN && address <= ROM_MAX) {
-        *(uint32_t*)(rom + address - ROM_MIN) = value;
+
+        memcpy(rom + address - ROM_MIN, &value, n_bytes);
+        // *(uint32_t*)(rom + address - ROM_MIN) = value;
     }
     else if(address >= RAM_MIN && address <= RAM_MAX) {
-        *(uint32_t*)(ram + address - RAM_MIN) = value;
+
+        memcpy(ram + address - RAM_MIN, &value, n_bytes);
+        // *(uint32_t*)(ram + address - RAM_MIN) = value;
     }
     else if(address >= PER_MIN && address <= PER_MAX)
         peripheral_write(address, value);
 
 }
 
-void load_from_memory(uint32_t *destination, uint32_t address) {
-    // Adress must be divisible by 4. so, truncate last two bits.
-    address &= ~3;
+void load_from_memory(uint32_t *destination, uint32_t address, int n_bytes) {
+    // Adress must be aligned
+    address &= ~(n_bytes-1);
     
-    int base;
+    // int base;
 
     if(address >= ROM_MIN && address <= ROM_MAX) {
-        base = address - ROM_MIN;
-        *destination = *(uint32_t*)(&rom[base]);
+        // base = address - ROM_MIN;
+        // *destination = *(uint32_t*)(&rom[base]);
+        memcpy(destination, rom + address - ROM_MIN, n_bytes);
     }
     else if(address >= RAM_MIN && address <= RAM_MAX) { 
-        base = address - RAM_MIN;   
-        *destination = *(uint32_t*)(&ram[base]);
+        // base = address - RAM_MIN;   
+        // *destination = *(uint32_t*)(&ram[base]);
+        memcpy(destination, ram + address - RAM_MIN, n_bytes);
     }
     else if(address >= PER_MIN && address <= PER_MAX)
         peripheral_read(address, destination);
@@ -216,17 +222,10 @@ int32_t execute_next( int is_debug_mode )
         printf("\n\nInstruction 0x%08X 0x%04X\n", PC - 4, inst);
         debug_dialog();
     }
-    
-    // this bit sequence is invalid according to thumb isa, so we use it as impl-defined debug statement
-    // to include debug statement, put ".hword 0xde00" in your asm code
-    if (inst == 0xde00) {
-        debug_dialog();
-        return 0;
-    }
 
     // putting 0xde01 in your code triggers a fps counter. this block calculates fps from two consecutive
     // 0xde01 calls. once in 60 triggers, fps count is printed on stdout
-    else if (inst == 0xde01) {
+    if (inst == 0xde01) {
         n_inst_after_fps++;
 
         if(n_inst_after_fps >= 60)
@@ -867,7 +866,7 @@ int32_t execute_next( int is_debug_mode )
         uint8_t rd = GET_BITS(inst, 10, 3);
         uint8_t immed = GET_BITS(inst, 7, 8);
         
-        load_from_memory( &cpu.reg[rd], PC + immed * 4);
+        load_from_memory( &cpu.reg[rd], PC + immed * 4, 4);
         return 0;
     }
 
@@ -881,7 +880,54 @@ int32_t execute_next( int is_debug_mode )
 
         uint32_t addr = cpu.reg[rm] + cpu.reg[rn];
 
-        store_to_memory( cpu.reg[rd], addr);
+        store_to_memory( cpu.reg[rd], addr, 4);
+
+        return 0;
+    }
+
+    // STRH Rd, [Rn, Rm]
+    // not tested
+    else if (GET_BITS(inst, 15, 7) == 0b0101001)
+    {
+        uint8_t rm = GET_BITS(inst, 8, 3);
+        uint8_t rn = GET_BITS(inst, 5, 3);
+        uint8_t rd = GET_BITS(inst, 2, 3);
+
+        uint32_t addr = cpu.reg[rm] + cpu.reg[rn];
+
+        store_to_memory( cpu.reg[rd], addr, 2);
+
+        return 0;
+    }
+
+    // STRB Rd, [Rn, Rm]
+    // not tested
+    else if (GET_BITS(inst, 15, 7) == 0b0101010)
+    {
+        uint8_t rm = GET_BITS(inst, 8, 3);
+        uint8_t rn = GET_BITS(inst, 5, 3);
+        uint8_t rd = GET_BITS(inst, 2, 3);
+
+        uint32_t addr = cpu.reg[rm] + cpu.reg[rn];
+
+        store_to_memory( cpu.reg[rd], addr, 1);
+
+        return 0;
+    }
+
+    // LDRSB Rd, [Rn, Rm]
+    // not tested
+    else if (GET_BITS(inst, 15, 7) == 0b0101011)
+    {
+        uint8_t rm = GET_BITS(inst, 8, 3);
+        uint8_t rn = GET_BITS(inst, 5, 3);
+        uint8_t rd = GET_BITS(inst, 2, 3);
+
+        uint32_t addr = cpu.reg[rm] + cpu.reg[rn];
+
+        load_from_memory( &cpu.reg[rd], addr, 1);
+        cpu.reg[rd] <<= 24; // sign extended
+        cpu.reg[rd] >>= 24;
 
         return 0;
     }
@@ -896,13 +942,61 @@ int32_t execute_next( int is_debug_mode )
 
         uint32_t addr = cpu.reg[rm] + cpu.reg[rn];
 
-        load_from_memory( &cpu.reg[rd], addr);
+        load_from_memory( &cpu.reg[rd], addr, 4);
+
+        return 0;
+    }
+
+    // LDRH Rd, [Rn, Rm]
+    // not tested
+    else if (GET_BITS(inst, 15, 7) == 0b0101101)
+    {
+        uint8_t rm = GET_BITS(inst, 8, 3);
+        uint8_t rn = GET_BITS(inst, 5, 3);
+        uint8_t rd = GET_BITS(inst, 2, 3);
+
+        uint32_t addr = cpu.reg[rm] + cpu.reg[rn];
+
+        cpu.reg[rd] = 0; // zero extended
+        load_from_memory( &cpu.reg[rd], addr, 2);
+
+        return 0;
+    }
+
+    // LDRB Rd, [Rn, Rm]
+    // not tested
+    else if (GET_BITS(inst, 15, 7) == 0b0101110)
+    {
+        uint8_t rm = GET_BITS(inst, 8, 3);
+        uint8_t rn = GET_BITS(inst, 5, 3);
+        uint8_t rd = GET_BITS(inst, 2, 3);
+
+        uint32_t addr = cpu.reg[rm] + cpu.reg[rn];
+
+        cpu.reg[rd] = 0; // zero extended
+        load_from_memory( &cpu.reg[rd], addr, 1);
+
+        return 0;
+    }
+
+    // LDRSH Rd, [Rn, Rm]
+    // not tested
+    else if (GET_BITS(inst, 15, 7) == 0b0101111)
+    {
+        uint8_t rm = GET_BITS(inst, 8, 3);
+        uint8_t rn = GET_BITS(inst, 5, 3);
+        uint8_t rd = GET_BITS(inst, 2, 3);
+
+        uint32_t addr = cpu.reg[rm] + cpu.reg[rn];
+
+        load_from_memory( &cpu.reg[rd], addr, 2);
+        cpu.reg[rd] <<= 16; // sign extended
+        cpu.reg[rd] >>= 16;
 
         return 0;
     }
 
     // STR Ld, [Ln, immed * 4]
-    // page 65
     else if (GET_BITS(inst, 15, 5) == 0b01100)
     {
         uint8_t immed = GET_BITS(inst, 10, 5);
@@ -911,13 +1005,12 @@ int32_t execute_next( int is_debug_mode )
 
         uint32_t addr = cpu.reg[rn] + 4 * immed;
 
-        store_to_memory( cpu.reg[rd], addr);
+        store_to_memory( cpu.reg[rd], addr, 4);
 
         return 0;
     }
 
     // LDR Ld, [Ln, immed*4 ]
-    // page 65
     else if (GET_BITS(inst, 15, 5) == 0b01101)
     {
         uint8_t immed = GET_BITS(inst, 10, 5);
@@ -926,7 +1019,59 @@ int32_t execute_next( int is_debug_mode )
 
         uint32_t addr = cpu.reg[rn] + 4 * immed;
 
-        load_from_memory( &cpu.reg[rd], addr);
+        load_from_memory( &cpu.reg[rd], addr, 4);
+
+        return 0;
+    }
+
+    // STRB Ld, [Ln, immed]
+    // not tested
+    else if (GET_BITS(inst, 15, 5) == 0b01110) {
+        uint8_t immed = GET_BITS(inst, 10, 5);
+        uint8_t rn = GET_BITS(inst, 5, 3);
+        uint8_t rd = GET_BITS(inst, 2, 3);
+
+        uint32_t addr = cpu.reg[rn] + immed;
+
+        store_to_memory( cpu.reg[rd], addr, 1);
+
+        return 0;
+    }
+
+    // LDRB Ld, [Ln, immed]
+    // not tested
+    else if (GET_BITS(inst, 15, 5) == 0b01111) {
+        uint8_t immed = GET_BITS(inst, 10, 5);
+        uint8_t rn = GET_BITS(inst, 5, 3);
+        uint8_t rd = GET_BITS(inst, 2, 3);
+
+        uint32_t addr = cpu.reg[rn] + immed;
+
+        load_from_memory( &cpu.reg[rd], addr, 1);
+        return 0;
+    }
+
+    // STRH Ld, [Ln, immed*2]
+    else if (GET_BITS(inst, 15, 5) == 0b10000) {
+        uint8_t immed = GET_BITS(inst, 10, 5);
+        uint8_t rn = GET_BITS(inst, 5, 3);
+        uint8_t rd = GET_BITS(inst, 2, 3);
+
+        uint32_t addr = cpu.reg[rn] + 2 * immed;
+
+        store_to_memory( cpu.reg[rd], addr, 2);
+        return 0;
+    }
+
+    // LDRH Ld, [Ln, immed*2]
+    else if (GET_BITS(inst, 15, 5) == 0b10001) {
+        uint8_t immed = GET_BITS(inst, 10, 5);
+        uint8_t rn = GET_BITS(inst, 5, 3);
+        uint8_t rd = GET_BITS(inst, 2, 3);
+
+        uint32_t addr = cpu.reg[rn] + 2 * immed;
+
+        load_from_memory( &cpu.reg[rd], addr, 2);
 
         return 0;
     }
@@ -939,7 +1084,7 @@ int32_t execute_next( int is_debug_mode )
 
         uint32_t addr = SP + immed * 4;
 
-        store_to_memory( cpu.reg[rd], addr);
+        store_to_memory( cpu.reg[rd], addr, 4);
 
 
         return 0;
@@ -953,7 +1098,7 @@ int32_t execute_next( int is_debug_mode )
 
         uint32_t addr = SP + immed * 4;
 
-        load_from_memory( &cpu.reg[rd], addr);
+        load_from_memory( &cpu.reg[rd], addr, 4);
 
         return 0;
     }
@@ -969,8 +1114,7 @@ int32_t execute_next( int is_debug_mode )
         cpu.reg[rd] = PC + immed_times_4;
 
         // Adress must be divisible by 4. so, truncate last two bits.
-        RESET_BIT(cpu.reg[rd], 0);
-        RESET_BIT(cpu.reg[rd], 1);
+        cpu.reg[rd] &= ~3;
 
         return 0;
     }
@@ -985,8 +1129,7 @@ int32_t execute_next( int is_debug_mode )
         cpu.reg[rd] = SP + immed_times_4;
         
         // Adress must be divisible by 4. so, truncate last two bits.
-        RESET_BIT(cpu.reg[rd], 0);
-        RESET_BIT(cpu.reg[rd], 1);
+        cpu.reg[rd] &= ~3;
 
         return 0;
     }
@@ -1012,6 +1155,101 @@ int32_t execute_next( int is_debug_mode )
         return 0;
     }
 
+    // SXTH Ld, Lm
+    // not tested
+    else if (GET_BITS(inst, 15, 10) == 0b1011001000) {
+        uint8_t rm = GET_BITS(inst, 5, 3);
+        uint8_t rd = GET_BITS(inst, 2, 3);
+        int32_t temp = cpu.reg[rm];
+        temp <<= 16;
+        temp >>= 16;
+
+        cpu.reg[rd] = temp;
+        return 0;
+    }
+
+    // SXTB Ld, Lm
+    // not tested
+    else if (GET_BITS(inst, 15, 10) == 0b1011001001) {
+        uint8_t rm = GET_BITS(inst, 5, 3);
+        uint8_t rd = GET_BITS(inst, 2, 3);
+        int32_t temp = cpu.reg[rm];
+        temp <<= 24;
+        temp >>= 24;
+
+        cpu.reg[rd] = temp;
+        return 0;
+    }
+
+    // UXTH Ld, Lm
+    // not tested
+    else if (GET_BITS(inst, 15, 10) == 0b1011001010) {
+        uint8_t rm = GET_BITS(inst, 5, 3);
+        uint8_t rd = GET_BITS(inst, 2, 3);
+        uint32_t temp = cpu.reg[rm];
+        temp <<= 16;
+        temp >>= 16;
+
+        cpu.reg[rd] = temp;
+        return 0;
+    }
+
+    // UXTB Ld, Lm
+    // not tested
+    else if (GET_BITS(inst, 15, 10) == 0b1011001011) {
+        uint8_t rm = GET_BITS(inst, 5, 3);
+        uint8_t rd = GET_BITS(inst, 2, 3);
+        uint32_t temp = cpu.reg[rm];
+        temp <<= 24;
+        temp >>= 24;
+
+        cpu.reg[rd] = temp;
+        return 0;
+    }
+
+    // REV Ld, Lm
+    else if (GET_BITS(inst, 15, 10) == 0b1011101000) {
+        uint8_t rm = GET_BITS(inst, 5, 3);
+        uint8_t rd = GET_BITS(inst, 2, 3);
+        uint32_t r = cpu.reg[rm];
+
+        cpu.reg[rd] =   GET_BITS(r, 31, 8) |
+                        GET_BITS(r, 23, 8) << 8 |
+                        GET_BITS(r, 15, 8) << 16 |
+                        GET_BITS(r, 7, 8) << 24;
+
+        return 0;
+    }
+
+    // REV16 Ld, Lm
+    else if (GET_BITS(inst, 15, 10) == 0b1011101001) {
+        uint8_t rm = GET_BITS(inst, 5, 3);
+        uint8_t rd = GET_BITS(inst, 2, 3);
+        uint32_t r = cpu.reg[rm];
+
+        cpu.reg[rd] =   GET_BITS(r, 31, 8) << 16 |
+                        GET_BITS(r, 23, 8) << 24 |
+                        GET_BITS(r, 15, 8) |
+                        GET_BITS(r, 7, 8) << 8;
+
+        return 0;
+    }
+
+    // REVSH Ld, Lm
+    else if (GET_BITS(inst, 15, 10) == 0b1011101011) {
+        uint8_t rm = GET_BITS(inst, 5, 3);
+        uint8_t rd = GET_BITS(inst, 2, 3);
+        uint32_t r = cpu.reg[rm];
+
+        cpu.reg[rd] =   GET_BITS(r, 15, 8) |
+                        GET_BITS(r, 7, 8) << 8;
+        
+        cpu.reg[rd] <<= 16;
+        cpu.reg[rd] >>= 16;
+
+        return 0;
+    }
+
 
     // PUSH R, reglist
     // reglist : one hot encoded [r7, r6 ... r0]
@@ -1024,13 +1262,13 @@ int32_t execute_next( int is_debug_mode )
 
         if(r == 1){
             addr -= 4; // stack is full descending
-            store_to_memory(LR, addr);
+            store_to_memory(LR, addr, 4);
         }
 
         for(int i = 7; i >= 0; i--){
             if((list & (1 << i)) != 0){
                 addr -= 4;
-                store_to_memory( cpu.reg[i], addr);
+                store_to_memory( cpu.reg[i], addr, 4);
             }
         }
 
@@ -1049,18 +1287,67 @@ int32_t execute_next( int is_debug_mode )
 
         for(int i = 0; i < 8; i++){
             if((list & (1 << i)) != 0){
-                load_from_memory( &cpu.reg[i], addr);
+                load_from_memory( &cpu.reg[i], addr, 4);
                 addr += 4;
             }
         }
         if(r == 1){
-            load_from_memory( &PC, addr);
+            load_from_memory( &PC, addr, 4);
             addr += 4;
         }
 
         SP = addr;
         return 0;
     }
+
+    // TODO! CPSIE CPSID ?
+
+    // BKPT immed8
+    else if (GET_BITS(inst, 15, 8) == 0b10111110) {
+        if ( !is_debug_mode ) debug_dialog();
+        return 0;
+    }
+
+    // STMIA Ln! , reglist
+    // not tested
+    else if (GET_BITS(inst, 15, 5) == 0b11000) {
+        uint8_t rn = GET_BITS(inst, 10, 3);
+        uint8_t list = GET_BITS(inst, 7, 8);
+        uint32_t addr = cpu.reg[rn];
+
+        for(int i = 0; i < 8; i++){
+            if((list & (1 << i)) != 0){
+                store_to_memory( cpu.reg[i], addr, 4);
+                addr += 4;
+            }
+        }
+
+        // writeback
+        load_from_memory( &cpu.reg[rn], addr-4, 4);
+
+        return 0;
+    }
+
+    // LDMIA Ln! , reglist
+    // not tested
+    else if (GET_BITS(inst, 15, 5) == 0b11001) {
+        uint8_t rn = GET_BITS(inst, 10, 3);
+        uint8_t list = GET_BITS(inst, 7, 8);
+        uint32_t addr = cpu.reg[rn];
+
+        for(int i = 0; i < 8; i++){
+            if((list & (1 << i)) != 0){
+                load_from_memory( &cpu.reg[i], addr, 4);
+                addr += 4;
+            }
+        }
+
+        // writeback
+        load_from_memory( &cpu.reg[rn], addr-4, 4);
+
+        return 0;
+    }
+
 
     // B(Cond) inst_address + 4 + signed_offset * 2
     else if (GET_BITS(inst, 15, 4) == 0b1101 && GET_BITS(inst, 11, 4) < 0b1110) {
@@ -1121,6 +1408,12 @@ int32_t execute_next( int is_debug_mode )
 
             PC += offset * 2 + 2;
         }
+        return 0;
+    }
+
+    // SWI immed
+    else if (GET_BITS(inst, 15, 8) == 0b11011111) {
+        // TODO
         return 0;
     }
 
