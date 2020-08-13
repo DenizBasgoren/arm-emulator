@@ -44,10 +44,10 @@ struct gpu {
 	uint8_t green;
 	uint8_t blue;
 	uint8_t alpha;
-	uint16_t texture_w; // struct texture
+	/*24*/ uint16_t texture_w; // struct texture
 	uint16_t texture_h;
 	uint32_t texture_data_addr;
-	uint8_t texture_channel; // 3 = rgb, 4 = rgba
+	/*32*/ uint8_t texture_channel; // 3 = rgb, 4 = rgba
 	uint8_t selected_slot;
 	uint8_t ___[2];
 	// 30
@@ -55,7 +55,7 @@ struct gpu {
 	uint16_t src_y;
 	uint16_t src_w;
 	uint16_t src_h;
-	uint16_t target_x; // screen pixel position
+	/*38*/ uint16_t target_x; // screen pixel position
 	uint16_t target_y;
 	uint16_t target_w;
 	uint16_t target_h;
@@ -64,7 +64,7 @@ struct gpu {
 
 static int gpu_clear( int mode ) // 0 = all 1 = rect
 {
-	struct gpu* p = (struct gpu*) gpu;
+	struct gpu* p = (struct gpu*) &gpu;
 	if (p->red > 255 || p->green > 255 || p->blue > 255 || p->alpha > 255) return -1;
 
 	SDL_SetRenderDrawColor(renderer, p->red, p->green, p->blue, p->alpha); // alpha=255 is opaque
@@ -96,7 +96,7 @@ static int gpu_draw( int mode ) {
 							// 1= no clipping, resize
 							// 2= clip, no resizing
 							// 3= clip, resize
-	struct gpu* p = (struct gpu*) gpu;
+	struct gpu* p = (struct gpu*) &gpu;
 	if (p->selected_slot >= N_SLOTS) return -1;
 
 	SDL_Texture* t = textures[p->selected_slot];
@@ -136,7 +136,7 @@ static int gpu_draw( int mode ) {
 
 static int gpu_update() {
 
-	struct gpu* p = (struct gpu*) gpu;
+	struct gpu* p = (struct gpu*) &gpu;
 	if (p->selected_slot >= N_SLOTS) return -1;
 
 	// if there was an old one, remove it first
@@ -237,7 +237,7 @@ int32_t system_init()
 	if ( renderer == NULL ) return -1;
 
 	// place constants
-	struct gpu* p = (struct gpu*) gpu;
+	struct gpu* p = (struct gpu*) &gpu;
 	p->const_screen_w = SCREEN_WIDTH;
 	p->const_screen_h = SCREEN_HEIGHT;
 	p->const_n_slots = N_SLOTS;
@@ -271,29 +271,28 @@ int32_t load_program(char *path, uint8_t *rom, uint8_t *ram) {
 	sprintf(cmd, "arm-none-eabi-as -mcpu=cortex-m0 -mthumb %s -o armapp.o", path);
 	if (system(cmd) != 0)
 	{
-		errorCode = -1;
-		goto cleanup1;
+		return -1;
 	}
 
 	sprintf(cmd, "arm-none-eabi-ld -T linker.ld armapp.o -o armapp.elf");
 	if (system(cmd) != 0)
 	{
 		errorCode = -1;
-		goto cleanup1;
+		goto cleanup2;
 	}
 
 	sprintf(cmd, "arm-none-eabi-objcopy -O binary -j .text armapp.elf text.bin");
 	if (system(cmd) != 0)
 	{
 		errorCode = -1;
-		goto cleanup1;
+		goto cleanup2;
 	}
 
 	sprintf(cmd, "arm-none-eabi-objcopy -O binary -j .data armapp.elf data.bin");
 	if (system(cmd) != 0)
 	{
 		errorCode = -1;
-		goto cleanup1;
+		goto cleanup2;
 	}
 
 	// load text to rom
@@ -305,7 +304,7 @@ int32_t load_program(char *path, uint8_t *rom, uint8_t *ram) {
 	if (fread(rom, 1, len, infile) != len)
 	{
 		errorCode = -1;
-		goto cleanup2;
+		goto cleanup1;
 	}
 	fclose(infile);
 
@@ -319,7 +318,7 @@ int32_t load_program(char *path, uint8_t *rom, uint8_t *ram) {
 	if (fread(ram, 1, len, infile) != len)
 	{
 		errorCode = -1;
-		goto cleanup2;
+		goto cleanup1;
 	}
 
 	printf("Assembled successfully!\n");
