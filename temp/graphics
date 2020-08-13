@@ -5,12 +5,17 @@
 1 const n_slots
 
 // 40 00 00 10
-4 clear_call(color)   // func
-1 draw_call(selected slot)    // func
-1 update_slot_call( which_slot ) // func
+1 clear_call( all/rect )   // func
+1 draw_call( )    // func
+1 update_slot_call( ) // func
 
 // 40 00 00 20
-9 texture slot
+4 color
+2 texture_w
+2 texture_h
+4 texture_addr
+1 texture_channel // rgb=3, rgba=4
+1 selected_slot
 
 // 40 00 00 30
 2 src_x       // texture pixel position_x
@@ -22,14 +27,6 @@
 2 target_w
 2 target_h
 
-
-struct texture (2+2+4=8)
-{
-    2 w
-    2 h
-    4 data (int*);
-    1 channel // rgb || rgba
-}
 
 https://afrantzis.com/pixel-format-guide/sdl2.html
 SDL_PIXELFORMAT_RGB24

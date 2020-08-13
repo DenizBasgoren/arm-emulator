@@ -44,19 +44,6 @@
 #define FLG_C (29)
 #define FLG_V (28)
 
-#define ROM_MAX 0x1FFFFFFF
-#define ROM_MIN 0x00000000
-
-#define RAM_MAX 0x3FFFFFFF
-#define RAM_MIN 0x20000000
-
-#define PER_MAX 0x5FFFFFFF
-#define PER_MIN 0x40000000
-
-#define GPU_MAX 0x4000003F
-#define GPU_MIN 0x40000000
-
-
 // registers
 struct {
     int32_t reg[16];
@@ -64,8 +51,8 @@ struct {
 } cpu;
 
 // memory
-uint8_t rom[0x200000];
-uint8_t ram[0x100000];
+uint8_t rom[ROM_LEN];
+uint8_t ram[RAM_LEN];
 uint8_t gpu[0x40];
 
 // fps counters
@@ -187,7 +174,7 @@ void store_to_memory(uint32_t value, uint32_t address, int n_bytes) {
         memcpy(ram + address - RAM_MIN, &value, n_bytes);
     }
     else if(address >= PER_MIN && address <= PER_MAX)
-        peripheral_write(address, value);
+        peripheral_write(address, value, n_bytes);
 
 }
 
@@ -202,7 +189,7 @@ void load_from_memory(uint32_t *destination, uint32_t address, int n_bytes) {
         memcpy(destination, ram + address - RAM_MIN, n_bytes);
     }
     else if(address >= PER_MIN && address <= PER_MAX)
-        peripheral_read(address, destination);
+        peripheral_read(address, destination, n_bytes);
 }
 
 //Fetches an instruction from ROM, decodes and executes it

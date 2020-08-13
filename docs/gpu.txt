@@ -1,0 +1,78 @@
+3 tane fn var:
+clear( color, x, y, w, h )
+draw( which_slot , src { x, y, w, h }, dest {x, y, w, h } )
+update_slot( which_slot, texture {w, h, data, channel } )
+bunlari bu sekilde secmemin sebebi, sdl in bu sekilde olmasi. sdl deki fonk signaturelarina uydurdum daha cok
+simdi fonklari tek tek anlatayim
+clear, x,y,w,h ile belirttigin kareyi color ile boyuyor. eger siyah secersen siyaha boyar. color alpha degerleri de alabilir
+draw i cagirmak icin once update_slot ile slotlari doldurmus olman lazim. diyelim 4 slottan 1. si dolu. onu kullanacaksak which_slot = 1 diyoruz. src ve dest i de anlatmama gerek yok, biliyorsun
+update_slot da slotlari doldurmak, bosaltmak, ve degistirmek icin. diyelim bir texturun var, onu 2 numarali slota yerlestireceksin. which_slot = 2 olur. ramde bir yerde data ni hazir ediyorsun. channel, rgb ve rgba olabilir sadece. enum yani. grayscale falan da ekleriz belki sonra ama simdilik sadece bu ikisi var, cunku sdl native olarak destekliyor bunlari. 
+data ni hazir ettikten sonra ptr i alip texture.data ya koyuyorsun. w ile h yi de belirtmen lazim. sonra update_slot diyorsun ve datan vrame tasiniyor, ve slot hafizada tutuluyor. kodda
+SDL_Texture *texture[4];
+yazdim, baktiysan.
+oradaki 4 u N_SLOTS yapmam lazimdi, unuttum :D
+ramdeki goruntu su sekilde
+
+screenshot:
+struct gpu {
+	// 00
+	const uint16_t screen_w;
+	const uint16_t screen_h;
+	const uint8_t n_slots;
+	uint8_t _[11];
+	// 10
+	uint8_t red; // clear_call
+	uint8_t green;
+	uint8_t blue;
+	uint8_t alpha;
+	uint8_t selected_slot; // draw_call
+	uint8_t update_slot; // update slot call
+	uint8_t __[10];
+	// 20
+	uint16_t texture_width; // struct texture
+	uint16_t texture_height;
+	uint32_t texture_data_addr;
+	uint8_t texture_channel; // 0 = rgb, 1 = rgba
+	uint8_t ___[7];
+	// 30
+	uint16_t src_x; // texture pixel position
+	uint16_t src_y;
+	uint16_t src_w;
+	uint16_t src_h;
+	uint16_t target_x; // screen pixel position
+	uint16_t target_y;
+	uint16_t target_w;
+	uint16_t target_h;
+};
+
+
+refresh, clean i yoksay. onlar eski
+diyelim (10,20) koordinatindan (30,40) buyuklugundeki alani sari boyayacaksin. sirasiyla soyle yapiyorsun:
+
+mov 10 to 0x40000038 // target x,y,w,h
+mov 20 to 0x4000003a
+mov 30 to 0x4000003c
+mov 40 to 0x4000003e
+mov 0xffff0000 to 0x40000010 // bu adrese yazinca fn tetiklenecek
+diger iki fn icin de birer ornek vereyim
+diyelim ramde (vramde degil) 20000000 adresinde, rgba formatini kullanan, 10x20 piksellik verin var. bu durumda w=10, h=20, channel=1 ve data_addr = 20000000 olur. bunu slot=3 e koymak istiyorsun atiyorum
+
+mov 10 to 0x40000020 // w
+mov 20 to 0x40000022 // h
+mov 0x20000000 to 0x40000024 // data addr
+mov 1 to 0x40000028 // 1 = rgba
+mov 3 to 0x40000015 // burasi ustteki screenshotta 40. satir oluyor. yaptigi, selected_slot = 3, ve ayni zamanda update_slot fonksiyonunu tetiklemek.
+
+olacaklar:
+vrame data tasinacak. belirttigin parametreler slot=3 'de  akilda tutulacak. (daha sonra burayi degistirebileceksin)
+datayi da silebilirsin, cunku vrame tasindi
+ve simdi bu slottaki texturenin (x,y,w,h) = (4,5,6,7) parcasini ekranda (x,y,w,h) = (40,50,60,70) a cizmek istiyorsun diyelim:
+mov 4 to 0x40000030 // src
+mov 5 to 0x40000032
+mov 6 to 0x40000034
+mov 7 to 0x40000036
+mov 40 to 0x40000038 // target
+mov 50 to 0x4000003a
+mov 60 to 0x4000003c
+mov 70 to 0x4000003e
+mov 3 to 0x40000014 // screenshotta 39. satir. bunun yaptigi selected slotu belirtmek ve draw fn unu tetiklemek.
