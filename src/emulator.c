@@ -53,16 +53,20 @@
 #define PER_MAX 0x5FFFFFFF
 #define PER_MIN 0x40000000
 
+#define GPU_MAX 0x4000003F
+#define GPU_MIN 0x40000000
+
+
 // registers
-typedef struct {
+struct {
     int32_t reg[16];
     int32_t cpsr;
-}tCPU;
+} cpu;
 
 // memory
 uint8_t rom[0x200000];
 uint8_t ram[0x100000];
-tCPU cpu;
+uint8_t gpu[0x40];
 
 // fps counters
 clock_t lastTime = 0;
@@ -177,14 +181,10 @@ void store_to_memory(uint32_t value, uint32_t address, int n_bytes) {
     address &= ~(n_bytes-1);
 
     if(address >= ROM_MIN && address <= ROM_MAX) {
-
         memcpy(rom + address - ROM_MIN, &value, n_bytes);
-        // *(uint32_t*)(rom + address - ROM_MIN) = value;
     }
     else if(address >= RAM_MIN && address <= RAM_MAX) {
-
         memcpy(ram + address - RAM_MIN, &value, n_bytes);
-        // *(uint32_t*)(ram + address - RAM_MIN) = value;
     }
     else if(address >= PER_MIN && address <= PER_MAX)
         peripheral_write(address, value);
@@ -195,16 +195,10 @@ void load_from_memory(uint32_t *destination, uint32_t address, int n_bytes) {
     // Adress must be aligned
     address &= ~(n_bytes-1);
     
-    // int base;
-
     if(address >= ROM_MIN && address <= ROM_MAX) {
-        // base = address - ROM_MIN;
-        // *destination = *(uint32_t*)(&rom[base]);
         memcpy(destination, rom + address - ROM_MIN, n_bytes);
     }
     else if(address >= RAM_MIN && address <= RAM_MAX) { 
-        // base = address - RAM_MIN;   
-        // *destination = *(uint32_t*)(&ram[base]);
         memcpy(destination, ram + address - RAM_MIN, n_bytes);
     }
     else if(address >= PER_MIN && address <= PER_MAX)

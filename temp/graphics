@@ -1,0 +1,39 @@
+
+// 40 00 00 00
+2 const screen_w
+2 const screen_h
+1 const n_slots
+
+// 40 00 00 10
+4 clear_call(color)   // func
+1 draw_call(selected slot)    // func
+1 update_slot_call( which_slot ) // func
+
+// 40 00 00 20
+9 texture slot
+
+// 40 00 00 30
+2 src_x       // texture pixel position_x
+2 src_y
+2 src_w
+2 src_h
+2 target_x    // screen pixel position_x
+2 target_y
+2 target_w
+2 target_h
+
+
+struct texture (2+2+4=8)
+{
+    2 w
+    2 h
+    4 data (int*);
+    1 channel // rgb || rgba
+}
+
+https://afrantzis.com/pixel-format-guide/sdl2.html
+SDL_PIXELFORMAT_RGB24
+SDL_PIXELFORMAT_RGBA8888
+
+
+http://osdl.sourceforge.net/main/documentation/rendering/SDL-audio.html

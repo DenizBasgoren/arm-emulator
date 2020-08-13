@@ -1,5 +1,5 @@
 
-#include <SDL2/SDL.h>
+#include <SDL/SDL.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,69 +9,79 @@
 
 
 
-#define SCREEN_WIDTH	800
-#define SCREEN_HEIGHT	600
-#define N_SLOTS			4
-#define OS_NAME			"Puhu OS"
+#define SCREEN_WIDTH	320
+#define SCREEN_HEIGHT	240
 
-SDL_Window *window;
-SDL_Renderer *renderer;
-SDL_Texture *texture[4]; // arr of 4 ptr to texture,
-						// or ptr to arr of 4 texture
-SDL_Event event;
+static SDL_Surface *screen;
+static int32_t xpos = 0;
+static int32_t ypos = 0;
+static uint32_t XBuf[SCREEN_WIDTH*SCREEN_HEIGHT];
 
 // prototypes
+static void updateFrameBuffer(uint32_t *dstPtr, uint32_t *srcPtr);
+static int32_t setCursorX(int32_t x);
+static int32_t setCursorY(int32_t y);
 static void refresh();
 static void clean();
+static void writePixel(uint32_t color);
+static void readPixel(uint32_t *color);
 static void readKeyboard(uint32_t *value);
 
-struct gpu {
 
-	// 00
-	const uint16_t screen_w;
-	const uint16_t screen_h;
-	const uint8_t n_slots;
-	uint8_t _[11];
+// implementations
+static void updateFrameBuffer(uint32_t *dstPtr, uint32_t *srcPtr)
+{
+    int32_t i, j;
 
-	// 10
-	uint8_t red; // clear_call
-	uint8_t green;
-	uint8_t blue;
-	uint8_t alpha;
-	uint8_t selected_slot; // draw_call
-	uint8_t update_slot; // update slot call
-	uint8_t __[10];
+    for(i = 0; i < SCREEN_HEIGHT; i++)
+    {
+        for(j = 0; j < SCREEN_WIDTH; j++)
+        {
+            *dstPtr++ = *srcPtr++;
+        }
+    }
+}
 
-	// 20
-	uint16_t texture_width; // struct texture
-	uint16_t texture_height;
-	uint32_t texture_data_addr;
-	uint8_t texture_channel; // 0 = rgb, 1 = rgba
-	uint8_t ___[7];
+static int32_t setCursorX(int32_t x)
+{
+	if (x < 0 || x >= SCREEN_WIDTH)
+		return -1;
+	xpos = x;
+	return 0;
+}
 
-	// 30
-	uint16_t src_x; // texture pixel position
-	uint16_t src_y;
-	uint16_t src_w;
-	uint16_t src_h;
-	uint16_t target_x; // screen pixel position
-	uint16_t target_y;
-	uint16_t target_w;
-	uint16_t target_h;
-};
+static int32_t setCursorY(int32_t y)
+{
+	if (y < 0 || y >= SCREEN_HEIGHT)
+		return -1;
+	ypos = y;
+	return 0;
+}
 
-// static void refresh()
-// {
-// 	// for every texture?
-// 	SDL_RenderCopy(renderer, texture, NULL, NULL);
-// 	SDL_RenderPresent(renderer);
-// }
+static void writePixel(uint32_t color)
+{
+	XBuf[ypos*SCREEN_WIDTH+xpos] = color;
+}
+
+static void readPixel(uint32_t *color)
+{
+	*color = XBuf[ypos*SCREEN_WIDTH+xpos];
+}
+
+static void refresh()
+{
+	if(SDL_LockSurface(screen) == 0)
+	{
+		updateFrameBuffer(screen->pixels, XBuf);
+	}
+	SDL_UnlockSurface(screen);
+	SDL_Flip(screen);
+}
 
 static void clean()
 {
-	SDL_SetRenderDrawColor(renderer, 0x00, 0x00, 0x00, 0x00);
-	SDL_RenderClear(renderer);
-	// refresh(); // ?
+	memset(XBuf, 0, sizeof(XBuf));
+	refresh();
 }
 
 static void readKeyboard(uint32_t *value) {
@@ -118,30 +128,19 @@ static void readKeyboard(uint32_t *value) {
 
 int32_t system_init()
 {
+    if (SDL_Init(SDL_INIT_VIDEO) != 0)
+	{
+        printf("Unable to initialize SDL: %s", SDL_GetError());
+        return -1;
+    }
 
-	if (SDL_Init( SDL_INIT_TIMER | SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_EVENTS)) {
-		printf("No SDL :c %s", SDL_GetError());
-	}
-
- 	window = SDL_CreateWindow(OS_NAME,
-                        300, // position
-                        100,
-                        SCREEN_WIDTH, SCREEN_HEIGHT,
-                        SDL_WINDOW_RESIZABLE);
-	
-	renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    screen = SDL_SetVideoMode(SCREEN_WIDTH, SCREEN_HEIGHT, 32, SDL_HWSURFACE);
 
 	return 0;
 }
 
 void system_deinit()
 {
-	for (int i = 0; i< N_SLOTS; i++) {
-    	SDL_DestroyTexture(texture[i]);
-	}
-    SDL_DestroyRenderer(renderer);
-    SDL_DestroyWindow(window);
-
 	SDL_Quit();
 }
 
@@ -230,7 +229,19 @@ int32_t peripheral_write(uint32_t addr, uint32_t value)
 {
 	switch(addr)
 	{
-		// TODO
+		case 0x40010000:   //row register
+			return setCursorY(value);
+		case 0x40010004:   //column register
+			return setCursorX(value);
+		case 0x40010008:   //color register
+			writePixel(value);
+			return 0;
+		case 0x4001000C:
+			refresh();
+			return 0;
+		case 0x40010010:
+			clean();
+			return 0;
 	}
 	return -1;
 }
@@ -241,6 +252,9 @@ int32_t peripheral_read(uint32_t addr, uint32_t *value)
 		return -1;
 	switch(addr)
 	{
+		case 0x4001000C:   //color register
+			readPixel(value);
+			return 0;
 		case 0x40010020:
 			readKeyboard(value);
 			return 0;
