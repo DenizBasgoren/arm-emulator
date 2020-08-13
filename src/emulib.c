@@ -14,8 +14,8 @@
 #define N_SLOTS			4
 #define WINDOW_NAME		"Puhu OS"
 
-extern uint8_t *gpu;
-extern uint8_t *ram;
+extern uint8_t gpu[];
+extern uint8_t ram[];
 
 static SDL_Window *window;
 static SDL_Renderer *renderer;
@@ -155,7 +155,7 @@ static int gpu_update() {
 	}
 	else return -1;
 
-	if ( p->texture_data_addr - ROM_MIN  +
+	if ( p->texture_data_addr - RAM_MIN  +
 		p->texture_w * p->texture_h * nBytes > RAM_LEN ) {
 			return -1;
 	}

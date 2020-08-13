@@ -1552,6 +1552,7 @@ void debug_dialog () {
             // get val
             if (from < ROM_MAX) val = rom[from];
             else if (from < RAM_MAX) val = ram[from - RAM_MIN];
+            else if (from < GPU_MAX) val = gpu[from - GPU_MIN];
             else {
                 puts("Not in ROM or RAM.");
                 goto debug_loop;
