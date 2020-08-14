@@ -9,7 +9,7 @@
 
 
 
-#define SCREEN_WIDTH	800
+#define SCREEN_WIDTH	512
 #define SCREEN_HEIGHT	600
 #define N_SLOTS			4
 #define WINDOW_NAME		"Puhu OS"
@@ -71,7 +71,9 @@ static int gpu_clear( int mode ) // 0 = all 1 = rect
 	
 	if (mode == 0)
 	{
-		return SDL_RenderClear(renderer);
+		SDL_RenderClear(renderer);
+		SDL_RenderPresent(renderer);
+		return 0;
 	}
 	else if (mode == 1)
 	{
@@ -86,7 +88,9 @@ static int gpu_clear( int mode ) // 0 = all 1 = rect
 		if (target.y + target.h > SCREEN_HEIGHT ) return -1;
 		
 
-		return SDL_RenderDrawRect(renderer, &target);
+		SDL_RenderDrawRect(renderer, &target);
+		SDL_RenderPresent(renderer);
+		return 0;
 	}
 	else return -1;
 }
@@ -131,7 +135,6 @@ static int gpu_draw( int mode ) {
 
 	SDL_RenderPresent(renderer);
 	return 0;
-
 }
 
 static int gpu_update() {
