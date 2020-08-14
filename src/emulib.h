@@ -16,7 +16,7 @@
 #define GPU_MIN 0x40000000
 
 
-int32_t load_program(char *path, uint8_t *rom, uint8_t *ram);
+int32_t load_program(char *rom_path, char *ram_path, uint8_t *rom, uint8_t *ram);
 
 int32_t system_init();
 

@@ -71,9 +71,9 @@ void load_from_memory(uint32_t *destination, uint32_t address, int n_bytes);
 //Emulator main function
 int32_t main(int32_t argc, char* argv[])
 {
-    if (argc < 2)
+    if (argc < 3)
     {
-        puts("Usage: emulator path/to/arm_assembly.s [, -debug ]");
+        puts("Usage: emulator path/to/rom path/to/ram [, -debug ]");
         return 1;
     }
 
@@ -85,7 +85,7 @@ int32_t main(int32_t argc, char* argv[])
     system_init();
 
     // load bytes to rom
-    if (load_program(argv[1], rom, ram) < 0) return 1;
+    if (load_program(argv[1], argv[2], rom, ram) < 0) return 1;
 
     // exit gracefully on ctrl+c
     signal(SIGINT, sigint_handler);
@@ -107,7 +107,7 @@ int32_t main(int32_t argc, char* argv[])
     PC += 2;
 
     // on debug mode, execution breaks after every instruction
-    int is_debug_mode = argc == 3 && !strcmp(argv[2], "-debug");
+    int is_debug_mode = argc == 4 && !strcmp(argv[3], "-debug");
 
     // main loop
     while (1)

@@ -9,7 +9,7 @@
 
 
 
-#define SCREEN_WIDTH	512
+#define SCREEN_WIDTH	1200
 #define SCREEN_HEIGHT	600
 #define N_SLOTS			4
 #define WINDOW_NAME		"Puhu OS"
@@ -67,13 +67,13 @@ static int gpu_clear( int mode ) // 0 = all 1 = rect
 	struct gpu* p = (struct gpu*) &gpu;
 	if (p->red > 255 || p->green > 255 || p->blue > 255 || p->alpha > 255) return -1;
 
-	SDL_SetRenderDrawColor(renderer, p->red, p->green, p->blue, p->alpha); // alpha=255 is opaque
-	
+	int err;
+	err = SDL_SetRenderDrawColor(renderer, p->red, p->green, p->blue, p->alpha); // alpha=255 is opaque
+	if (err) return -1;
+
 	if (mode == 0)
 	{
-		SDL_RenderClear(renderer);
-		SDL_RenderPresent(renderer);
-		return 0;
+		err = SDL_RenderClear(renderer);
 	}
 	else if (mode == 1)
 	{
@@ -87,12 +87,16 @@ static int gpu_clear( int mode ) // 0 = all 1 = rect
 		if (target.x + target.w > SCREEN_WIDTH ) return -1;
 		if (target.y + target.h > SCREEN_HEIGHT ) return -1;
 		
-
-		SDL_RenderDrawRect(renderer, &target);
-		SDL_RenderPresent(renderer);
-		return 0;
+		err = SDL_RenderDrawRect(renderer, &target);
 	}
-	else return -1;
+	else {
+		err = -1;
+	}
+
+	if (err) return err;
+	
+	SDL_RenderPresent(renderer);
+	return 0;
 }
 
 static int gpu_draw( int mode ) {
@@ -228,8 +232,8 @@ int32_t system_init()
 	}
 
  	window = SDL_CreateWindow(WINDOW_NAME,
-                        300, // position
-                        100,
+                        SDL_WINDOWPOS_CENTERED, // position
+                        SDL_WINDOWPOS_CENTERED,
                         SCREEN_WIDTH, SCREEN_HEIGHT,
                         SDL_WINDOW_RESIZABLE);
 	
@@ -260,83 +264,42 @@ void system_deinit()
 }
 
 
-int32_t load_program(char *path, uint8_t *rom, uint8_t *ram) {
+int32_t load_program(char *rom_path, char *ram_path, uint8_t *rom, uint8_t *ram) {
 	FILE *infile;
 	uint32_t len;
-	int32_t errorCode = 0;
 	char cmd[512];
 
-	if (rom == NULL || ram == NULL)
-	{
-		return -1;
-	}
-
-	sprintf(cmd, "arm-none-eabi-as -mcpu=cortex-m0 -mthumb %s -o armapp.o", path);
-	if (system(cmd) != 0)
-	{
-		return -1;
-	}
-
-	sprintf(cmd, "arm-none-eabi-ld -T linker.ld armapp.o -o armapp.elf");
-	if (system(cmd) != 0)
-	{
-		errorCode = -1;
-		goto cleanup2;
-	}
-
-	sprintf(cmd, "arm-none-eabi-objcopy -O binary -j .text armapp.elf text.bin");
-	if (system(cmd) != 0)
-	{
-		errorCode = -1;
-		goto cleanup2;
-	}
-
-	sprintf(cmd, "arm-none-eabi-objcopy -O binary -j .data armapp.elf data.bin");
-	if (system(cmd) != 0)
-	{
-		errorCode = -1;
-		goto cleanup2;
-	}
+	if (rom == NULL || ram == NULL) return -1;
 
 	// load text to rom
-	infile = fopen("text.bin", "rb");
+	infile = fopen(rom_path, "rb");
 	fseek(infile, 0, SEEK_END);
 	len = ftell(infile);
 	fseek(infile, 0, SEEK_SET);
 
 	if (fread(rom, 1, len, infile) != len)
 	{
-		errorCode = -1;
-		goto cleanup1;
+		fclose(infile);
+		return -1;
 	}
 	fclose(infile);
 
 
 	// load data to ram
-	infile = fopen("data.bin", "rb");
+	infile = fopen(ram_path, "rb");
 	fseek(infile, 0, SEEK_END);
 	len = ftell(infile);
 	fseek(infile, 0, SEEK_SET);
 
 	if (fread(ram, 1, len, infile) != len)
 	{
-		errorCode = -1;
-		goto cleanup1;
+		fclose(infile);
+		return -1;
 	}
-
-	printf("Assembled successfully!\n");
-
-	cleanup1:
 	fclose(infile);
 
-	cleanup2:
-	#if defined(__unix__)
-		system("rm armapp.o text.bin data.bin");
-	#elif defined(_WIN32) || defined(_WIN64)
-		system("del armapp.o text.bin data.bin");
-	#endif
-
-	return errorCode;
+	printf("Assembled successfully!\n");
+	return 0;
 }
 
 int32_t peripheral_write(uint32_t addr, uint32_t value, int n_bytes)
