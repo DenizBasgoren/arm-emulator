@@ -782,8 +782,8 @@ int32_t execute_next( int is_debug_mode )
         uint8_t rm = GET_BITS(inst, 6, 4);
 
         // here, temp is needed, because if cpu.reg[rm] == lr, we lose the value in lr
-        uint32_t temp = PC+1; // +1 because thumb=1
-        PC = cpu.reg[rm] & ~1; // thumb mode
+        uint32_t temp = PC; // +1 because thumb=1
+        PC = cpu.reg[rm]; // thumb mode
         LR = temp;
 
         return 0;
@@ -1426,9 +1426,9 @@ int32_t execute_next( int is_debug_mode )
             poff >>= 21;
         }
         
-        LR = PC+1; // thumb mode
+        LR = PC; // thumb mode
         PC = (PC + (poff<<12) + offset*4) & ~3; // NOTE: -2, because offset is rel to prefix instruction, not this one
-        PC--; // thumb mode
+        // PC--; // thumb mode
         return 0;
     }
     
@@ -1458,9 +1458,9 @@ int32_t execute_next( int is_debug_mode )
             poff >>= 21;
         }
 
-        LR = PC+1; // thumb mode
+        LR = PC; // thumb mode
         PC += (poff<<12) + offset*2; // NOTE: -2, because offset is rel to prefix instruction, not this one
-        PC--; // thumb mode
+        // PC--; // thumb mode
         return 0;
     }
 

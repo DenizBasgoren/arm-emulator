@@ -11,10 +11,11 @@ let arr = `
 */
 
 // EDIT HERE
-let dir = 'samples/'
+let dir = 'samples/gpu_sample/'
 let arr = `
 
-gpuflag.s
+vectable.s
+main.c
 
 `
 // EDIT END

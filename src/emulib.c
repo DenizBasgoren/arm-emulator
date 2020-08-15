@@ -9,7 +9,7 @@
 
 
 
-#define SCREEN_WIDTH	512
+#define SCREEN_WIDTH	800
 #define SCREEN_HEIGHT	600
 #define N_SLOTS			4
 #define WINDOW_NAME		"Puhu OS"
@@ -44,10 +44,10 @@ struct gpu {
 	uint8_t green;
 	uint8_t blue;
 	uint8_t alpha;
-	/*24*/ uint16_t texture_w; // struct texture
+	uint16_t texture_w; // struct texture
 	uint16_t texture_h;
 	uint32_t texture_data_addr;
-	/*32*/ uint8_t texture_channel; // 3 = rgb, 4 = rgba
+	uint8_t texture_channel; // 3 = rgb, 4 = rgba
 	uint8_t selected_slot;
 	uint8_t ___[2];
 	// 30
@@ -55,7 +55,7 @@ struct gpu {
 	uint16_t src_y;
 	uint16_t src_w;
 	uint16_t src_h;
-	/*38*/ uint16_t target_x; // screen pixel position
+	uint16_t target_x; // screen pixel position
 	uint16_t target_y;
 	uint16_t target_w;
 	uint16_t target_h;
@@ -162,8 +162,9 @@ static int gpu_update() {
 	}
 	else return -1;
 
-	if ( p->texture_data_addr - RAM_MIN  +
-		p->texture_w * p->texture_h * nBytes > RAM_LEN ) {
+	// TODO
+	if ( p->texture_data_addr - ROM_MIN  +
+		p->texture_w * p->texture_h * nBytes > ROM_LEN ) {
 			return -1;
 	}
 
@@ -176,7 +177,7 @@ static int gpu_update() {
 	
 	SDL_UpdateTexture( textures[p->selected_slot],
 					NULL,
-					p->texture_data_addr - RAM_MIN + ram,
+					p->texture_data_addr - ROM_MIN + rom,
 					p->texture_w * nBytes );
 
 	return 0;

@@ -6,8 +6,7 @@
             "command": "/usr/bin/gcc",
             "args": [
                 "-g",
-                "${workspaceFolder}/src/emulator.c",
-                "${workspaceFolder}/src/emulib.c",
+                "${workspaceFolder}/src/*.c",
                 "-lSDL2",
                 "-o",
                 "${workspaceFolder}/dist-linux/emulator"
@@ -29,8 +28,7 @@
             "command": "/usr/bin/gcc",
             "args": [
                 "-g",
-                "${workspaceFolder}/src/emulator.c",
-                "${workspaceFolder}/src/emulib.c",
+                "${workspaceFolder}/src/*.c",
                 "-lSDL2",
                 "-O3",
                 "-o",

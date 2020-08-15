@@ -9,7 +9,10 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/dist-linux/emulator",
-            "args": ["${workspaceFolder}/samples/gpuflag.s"],
+            "args": [
+                "${workspaceFolder}/dist-linux/rom",
+                "${workspaceFolder}/dist-linux/ram"
+            ],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
