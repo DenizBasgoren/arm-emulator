@@ -2,14 +2,12 @@
 
 .section .data
 
-junk1: .ascii "pen pineapple"
 f1: .ascii "~!!~!!~!!~~!~~!~~!~~!~~!"
 f2: .ascii "~!!~!!~!!~~!~~!~~!~~!~~!"
 f3: .ascii "~!!~!!~!!~~!~~!~~!~~!~~!"
 f4: .ascii "!!~!!~!!~!~!!~!!~!!~!!~!"
 f5: .ascii "!!~!!~!!~!~!!~!!~!!~!!~!"
 f6: .ascii "!!~!!~!!~!~!!~!!~!!~!!~!"
-junk2: .ascii "apple pen"
 
 .section .text
 
@@ -88,8 +86,3 @@ strh r1, [r0, #34]          // src_y = 0
         cmp r4, r1
         bge .loop1
     b .loop2
-
-busy_loop:
-bkpt 0
-b busy_loop
-

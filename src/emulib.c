@@ -1,15 +1,15 @@
 
 #include <SDL2/SDL.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 
+#include "emulator.h"
 #include "emulib.h"
 
 
 
-#define SCREEN_WIDTH	1200
+#define SCREEN_WIDTH	512
 #define SCREEN_HEIGHT	600
 #define N_SLOTS			4
 #define WINDOW_NAME		"Puhu OS"
@@ -298,7 +298,7 @@ int32_t load_program(char *rom_path, char *ram_path, uint8_t *rom, uint8_t *ram)
 	}
 	fclose(infile);
 
-	printf("Assembled successfully!\n");
+	printf("Loaded successfully!\n");
 	return 0;
 }
 

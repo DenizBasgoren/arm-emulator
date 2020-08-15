@@ -26,7 +26,7 @@ let { exit } = require('process')
 let rels = []
 let junks = []
 function newFileName(isRel) {
-	let j = `temp/${junks.length}`
+	let j = `${junks.length}`
 	junks.push(j)
 	if (isRel) rels.push(j)
 	return j
@@ -71,7 +71,7 @@ arr.split('\n').filter(line => !/$\s*^/.test(line) ).forEach(entry => {
 })
 
 
-let n = newFileName(false)
+let n = 'dist-linux/armapp.elf'
 cmds.push(`arm-none-eabi-ld ${rels.join(' ')} -T linker.ld -L /usr/lib/gcc/arm-none-eabi/10.1.0/thumb/v6-m/nofp/ -lgcc -o ${n}`)
 cmds.push(`arm-none-eabi-objcopy -O binary -j .text ${n} dist-linux/rom`)
 cmds.push(`arm-none-eabi-objcopy -O binary -j .data ${n} dist-linux/ram`)

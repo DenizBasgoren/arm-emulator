@@ -7,4 +7,5 @@ void onReset() {
 	int b = 5;
 	int c = a+b;
 
+	asm("bkpt 0");
 }

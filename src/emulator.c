@@ -7,63 +7,24 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
+#include "emulator.h"
 #include "emulib.h"
+#include "debugger.h"
 
-// start (in order of documentation), offset ( number of bits from start to direction of 0)
-// GET_BITS( 010110, 3, 4 ) == 0110
-#define GET_BITS(bits, start, offset) (((bits) >> ((start) - (offset) + 1)) & ((1 << (offset)) - 1))
-
-// set a bit to 1 in given bits
-#define SET_BIT(bits, n) ((bits) |= (1 << (n)))
-
-// set a bit to 0 in given bits
-#define RESET_BIT(bits,b) ((bits) &= ~(1ULL<<(b)))
-
-// we will refer to values in registers by these shortcuts
-#define R0  (cpu.reg[0])
-#define R1  (cpu.reg[1])
-#define R2  (cpu.reg[2])
-#define R3  (cpu.reg[3])
-#define R4  (cpu.reg[4])
-#define R5  (cpu.reg[5])
-#define R6  (cpu.reg[6])
-#define R7  (cpu.reg[7])
-#define R8  (cpu.reg[8])
-#define R9  (cpu.reg[9])
-#define R10  (cpu.reg[10])
-#define R11  (cpu.reg[11])
-#define R12  (cpu.reg[12])
-#define SP  (cpu.reg[13])
-#define LR  (cpu.reg[14])
-#define PC  (cpu.reg[15])
-#define FLG (cpu.cpsr) // flag register
-#define FLG_N (31)
-#define FLG_Z (30)
-#define FLG_C (29)
-#define FLG_V (28)
 
 // registers
-struct {
-    int32_t reg[16];
-    int32_t cpsr;
-} cpu;
+struct cpu_t cpu;
 
 // memory
 uint8_t rom[ROM_LEN];
 uint8_t ram[RAM_LEN];
-uint8_t gpu[0x40];
-
-// fps counters
-clock_t lastTime = 0;
-size_t n_inst_after_fps = 0;
+uint8_t gpu[GPU_LEN];
 
 int32_t execute_next( int is_debug_mode );
 void update_nz_flags(int32_t reg);
 void update_vc_flags_in_addition(int32_t o1, int32_t o2, int32_t res);
 void update_vc_flags_in_subtraction(int32_t o1, int32_t o2, int32_t res);
-void debug_dialog();
 void sigint_handler();
 void store_to_memory(uint32_t value, uint32_t address, int n_bytes);
 void load_from_memory(uint32_t *destination, uint32_t address, int n_bytes);
@@ -103,16 +64,25 @@ int32_t main(int32_t argc, char* argv[])
     //Following 4 bytes in ROM initializes the PC
     load_from_memory( &PC, ROM_MIN+4, 4);
 
+    // Always thumb mode
+    PC &= ~1;
+
     // PC always points 4 bytes after current instruction.
     PC += 2;
 
     // on debug mode, execution breaks after every instruction
     int is_debug_mode = argc == 4 && !strcmp(argv[3], "-debug");
 
+    // activate timer
+    debug_lastTime = clock();
+
     // main loop
     while (1)
     {
-        if (execute_next( is_debug_mode )) break;
+        int err = execute_next( is_debug_mode );
+        debug_inst_elapsed++;
+
+        if (err) break;
     }
     
     // Free SDL
@@ -150,14 +120,7 @@ void update_vc_flags_in_subtraction(int32_t o1, int32_t o2, int32_t res) {
 
 // ctrl+c handler
 void sigint_handler() {
-    puts("\nTermination");
-
-    #if defined(__unix__)
-		system("rm armapp.elf");
-	#elif defined(_WIN32) || defined(_WIN64)
-		system("del armapp.elf");
-	#endif
-    
+    puts("\nTermination");    
     exit(0);
 }
 
@@ -204,24 +167,9 @@ int32_t execute_next( int is_debug_mode )
         debug_dialog();
     }
 
-    // putting 0xde01 in your code triggers a fps counter. this block calculates fps from two consecutive
-    // 0xde01 calls. once in 60 triggers, fps count is printed on stdout
-    if (inst == 0xde01) {
-        n_inst_after_fps++;
-
-        if(n_inst_after_fps >= 60)
-        {
-            clock_t curr = clock();
-            double time_elapsed = ((double)(curr-lastTime))/CLOCKS_PER_SEC;
-            lastTime = curr;
-            printf("FPS: %f\n", 60.0/time_elapsed);
-            n_inst_after_fps = 0;
-        }
-        return 0;
-    }
 
     // LSL Rd, Rm, immed
-    else if (GET_BITS(inst, 15, 5) == 0b00000) {
+    if (GET_BITS(inst, 15, 5) == 0b00000) {
         uint8_t immed = GET_BITS(inst, 10, 5);
         uint8_t rm = GET_BITS(inst, 5, 3);
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -824,7 +772,7 @@ int32_t execute_next( int is_debug_mode )
     // BX Rm
     else if(GET_BITS(inst, 15, 9) == 0b010001110){
         uint8_t rm = GET_BITS(inst, 6, 4);
-        PC = cpu.reg[rm];
+        PC = cpu.reg[rm] & ~1;
 
         return 0;
     }
@@ -834,8 +782,8 @@ int32_t execute_next( int is_debug_mode )
         uint8_t rm = GET_BITS(inst, 6, 4);
 
         // here, temp is needed, because if cpu.reg[rm] == lr, we lose the value in lr
-        uint32_t temp = PC;
-        PC = cpu.reg[rm];
+        uint32_t temp = PC+1; // +1 because thumb=1
+        PC = cpu.reg[rm] & ~1; // thumb mode
         LR = temp;
 
         return 0;
@@ -1285,7 +1233,56 @@ int32_t execute_next( int is_debug_mode )
 
     // BKPT immed8
     else if (GET_BITS(inst, 15, 8) == 0b10111110) {
-        if ( !is_debug_mode ) debug_dialog();
+
+        uint8_t code = GET_BITS(inst, 7, 8);
+
+        // activate interactive debug dialog
+        if (code == 0) {
+            if ( !is_debug_mode ) debug_dialog();
+        }
+
+        // print registers
+        else if (code == 1) {
+            debug_printRegisters();
+        }
+
+        // disassemble
+        else if (code == 2) {
+            debug_disassemble();
+        }
+
+        // timer call
+        else if (code == 3) {
+            debug_printTimer();
+        }
+
+        // print mem between a, b
+        else if (code == 4) {
+            if (R0 > R1) puts("From > to is not possible");
+            else debug_printMemoryBetween(R0, R1);
+        }
+
+        // print string from a
+        else if (code == 5) {
+            debug_printMemoryUntilNull(R0);
+        }
+
+        // scanf num
+        else if (code == 6) {
+            int input;
+            scanf("%d", &input);
+            store_to_memory(input, R0, 4);
+        }
+
+        // scanf string
+        else if (code == 7) {
+            char input[100];
+            scanf("%s", input);
+            debug_storeString(input, R0);
+        }
+
+        else return -1;
+
         return 0;
     }
 
@@ -1429,8 +1426,9 @@ int32_t execute_next( int is_debug_mode )
             poff >>= 21;
         }
         
-        LR = PC;
+        LR = PC+1; // thumb mode
         PC = (PC + (poff<<12) + offset*4) & ~3; // NOTE: -2, because offset is rel to prefix instruction, not this one
+        PC--; // thumb mode
         return 0;
     }
     
@@ -1460,8 +1458,9 @@ int32_t execute_next( int is_debug_mode )
             poff >>= 21;
         }
 
-        LR = PC;
+        LR = PC+1; // thumb mode
         PC += (poff<<12) + offset*2; // NOTE: -2, because offset is rel to prefix instruction, not this one
+        PC--; // thumb mode
         return 0;
     }
 
@@ -1469,114 +1468,3 @@ int32_t execute_next( int is_debug_mode )
     return 1;
 }
 
-
-
-// this gets called on every 0xde00 byte sequence in asm code.
-// it lets you see current register values, and memory contents.
-// for a per-instruction debugging mode, add -debug flag to args
-void debug_dialog () {    
-    uint16_t inst = rom[PC - 4] | rom[PC - 3] << 8;
-    uint8_t N = GET_BITS(FLG, FLG_N, 1);
-    uint8_t Z = GET_BITS(FLG, FLG_Z, 1);
-    uint8_t C = GET_BITS(FLG, FLG_C, 1);
-    uint8_t V = GET_BITS(FLG, FLG_V, 1);
-
-    puts("\x1b[2J\x1b[1;1H");
-    puts("Debug instruction!");
-
-    if(GET_BITS(inst, 15, 5) == 0b11110) {
-        puts("Note: This is a branch prefix instruction");
-    }
-
-    printf("Next instruction: 0x%04x @ 0x%08x \n\n", inst, PC - 4);
-
-    #define GREEN_TERM "\x1b[32m"
-    #define WHITE_TERM "\x1b[97m"
-    #define GRAY_TERM "\x1b[37m"
-
-    printf(GREEN_TERM);
-    puts("R0 (hex)\tR1 (hex)\tR2 (hex)\tR3 (hex)");
-    printf(WHITE_TERM);
-    printf("%-8x\t%-8x\t%-8x\t%-8x\n", R0, R1, R2, R3);
-
-    printf(GREEN_TERM);
-    puts("R4 (hex)\tR5 (hex)\tR6 (hex)\tR7 (hex)");
-    printf(WHITE_TERM);
-    printf("%-8x\t%-8x\t%-8x\t%-8x\n", R4, R5, R6, R7);
-
-    printf(GREEN_TERM);
-    puts("R8 (hex)\tR9 (hex)\tR10 (hex)\tR11 (hex)");
-    printf(WHITE_TERM);
-    printf("%-8x\t%-8x\t%-8x\t%-8x\n", R8, R9, R10, R11);
-
-    printf(GREEN_TERM);
-    puts("R12 (hex)\tSP (hex)\tLR (hex)\tPC (hex)");
-    printf(WHITE_TERM);
-    printf("%-8x\t%-8x\t%-8x\t%-8x\n", R12, SP, LR, PC);
-
-    printf(GREEN_TERM);
-    puts("FLG_N (hex)\tFLG_Z (hex)\tFLG_C (hex)\tFLG_V (hex)");
-    printf(WHITE_TERM);
-    printf("%-8x\t%-8x\t%-8x\t%-8x\n", N, Z, C, V);
-
-    uint32_t from, to;
-    debug_loop:
-    while(1) {
-        printf(GRAY_TERM);
-        puts("\n\nTo print memory from 100 to 200 (hex), type 100-200");
-        puts("To continue to program, type q");
-        puts("To disassemble, type d");
-        printf(WHITE_TERM);
-
-        char input_string[100];
-
-        scanf("%s", input_string);
-        if ( *input_string == 'q') {
-            puts("Exited debug mode");
-            break;
-        }
-        else if ( *input_string == 'd') {
-            system("arm-none-eabi-objdump -d armapp.elf");
-            continue;
-        }
-
-        sscanf(input_string, "%x-%x", &from, &to );
-        printf("Memory %x - %x (inclusive): (%d bytes)\n\n", from, to, to-from+1);
-        printf(GREEN_TERM);
-
-        int temp = 0;
-
-        for (; from <= to; from++, temp++) {
-
-            uint8_t val;
-            // get val
-            if (from < ROM_MAX) val = rom[from];
-            else if (from < RAM_MAX) val = ram[from - RAM_MIN];
-            else if (from < GPU_MAX) val = gpu[from - GPU_MIN];
-            else {
-                puts("Not in ROM or RAM.");
-                goto debug_loop;
-            }
-
-            if ( from % 8 == 0) {
-                temp = 0;
-            }
-
-            if ( temp % 8 == 0) {
-                printf(GREEN_TERM);
-                printf("\n%08x\t", from);
-                printf(WHITE_TERM);
-            }
-            
-            printf("%02x", val);
-            printf(GRAY_TERM);
-            if (val > 31 && val < 177)
-            printf("'%01c'  ", val );
-            else printf("     ");
-            printf(WHITE_TERM);
-
-        }
-
-        puts(WHITE_TERM);
-    }
-}
