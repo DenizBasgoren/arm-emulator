@@ -65,3 +65,15 @@ extern struct cpu_t cpu;
 extern uint8_t rom[ROM_LEN];
 extern uint8_t ram[RAM_LEN];
 extern uint8_t gpu[0x40];
+
+struct range {
+    char exists;
+    char* min;
+    char* max;
+    int len;
+    char* real_min;
+    char* real;
+    char* real_max;
+};
+
+struct range rangeOf(int from);

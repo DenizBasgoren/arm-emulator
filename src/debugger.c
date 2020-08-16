@@ -37,6 +37,7 @@ void debug_dialog () {
         puts("\n\nTo print memory from 100 to 200 (hex), type 100-200");
         puts("To continue to program, type q");
         puts("To disassemble, type d");
+        puts("To print registers, type r");
         printf(WHITE_TERM);
 
         char input_string[100];
@@ -48,6 +49,10 @@ void debug_dialog () {
         }
         else if ( *input_string == 'd') {
             debug_disassemble();
+            continue;
+        }
+        else if ( *input_string == 'r') {
+            debug_printRegisters();
             continue;
         }
         else {
@@ -93,7 +98,7 @@ void debug_printRegisters() {
 }
 
 void debug_disassemble() {
-    system("arm-none-eabi-objdump -d armapp.elf");
+    system("arm-none-eabi-objdump -d dist-linux/armapp.elf");
 }
 
 void debug_printMemoryBetween(uint32_t from, uint32_t to) {
@@ -104,15 +109,13 @@ void debug_printMemoryBetween(uint32_t from, uint32_t to) {
 
     for (; from <= to; from++, temp++) {
 
-        uint8_t val;
-        // get val
-        if (from >= ROM_MIN && from <= ROM_MAX) val = rom[from - ROM_MIN];
-        else if (from >= RAM_MIN && from <= RAM_MAX) val = ram[from - RAM_MIN];
-        else if (from >= GPU_MIN && from <= GPU_MAX) val = gpu[from - GPU_MIN];
-        else {
-            puts("Not in ROM or RAM.");
+        struct range new = rangeOf(from);
+        if (!new.exists) {
+            puts("Not in memory.");
             return;
         }
+
+        uint8_t val = *new.real;
 
         if ( from % 8 == 0) {
             temp = 0;
@@ -136,38 +139,25 @@ void debug_printMemoryBetween(uint32_t from, uint32_t to) {
 
 // CHAR = 4 BYTE VARIANT
 void debug_printMemoryUntilNull(uint32_t from) {
-    char* realAddr;
-    char* realMax;
 
-    // get val
-    if (from >= ROM_MIN && from <= ROM_MAX) {
-        realAddr = rom + from - ROM_MIN;
-        realMax = rom + ROM_MAX - ROM_MIN;
-    }
-    else if (from >= RAM_MIN && from <= RAM_MAX) {
-        realAddr = ram + from - RAM_MIN;
-        realMax = ram + RAM_MAX - RAM_MIN;
-    }
-    else if (from >= GPU_MIN && from <= GPU_MAX) {
-        realAddr = gpu + from - GPU_MIN;
-        realMax = gpu + GPU_MAX - GPU_MIN;
-    }
-    else {
-        puts("Not in ROM or RAM.");
+    struct range new = rangeOf(from);
+
+    if (!new.exists) {
+        puts("Not in memory.");
         return;
     }
 
     while (1) {
-        if (realAddr > realMax) {
+        if (new.real > new.real_max) {
             puts("\nBuffer overflow\n");
             return;
         }
-        else if (*realAddr == '\0') {
+        else if (*new.real == '\0') {
             break;
         }
         else {
-            putc( *realAddr, stdout);
-            realAddr += 4;
+            putc( *new.real, stdout);
+            new.real += 4;
         }
 
     }
@@ -187,25 +177,17 @@ void debug_printTimer() {
 
 void debug_storeString(char* str, uint32_t to) {
     uint32_t* realAddr;
-    int maxlen;
+    size_t maxlen;
     
-    if (to >= ROM_MIN && to <= ROM_MAX) {
-        realAddr = (uint32_t*) (rom + to - ROM_MIN);
-        maxlen = ROM_MAX - to + 1;
-    }
-    else if (to >= RAM_MIN && to <= RAM_MAX) {
-        realAddr = (uint32_t*) (ram + to - RAM_MIN);
-        maxlen = RAM_MAX - to + 1;
-    }
-    else if (to >= GPU_MIN && to <= GPU_MAX) {
-        realAddr = (uint32_t*) (gpu + to - GPU_MIN);
-        maxlen = GPU_MAX - to + 1;
-    }
-    else {
-        puts("Not in ROM or RAM.");
+    struct range new = rangeOf(to);
+    if (!new.exists) {
+        puts("Not in memory.");
         return;
     }
 
+    realAddr = (uint32_t*) new.real;
+    maxlen = (size_t) (new.max - to + 1);
+    
     if ( strlen(str)*4 > maxlen ) {
         puts("Buffer overflow");
         return;

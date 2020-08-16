@@ -32,7 +32,7 @@
                 "-lSDL2",
                 "-O3",
                 "-o",
-                "${workspaceFolder}/dist-linux/emulator_op"
+                "${workspaceFolder}/dist-linux/emulator"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -40,10 +40,25 @@
             "problemMatcher": [
                 "$gcc"
             ],
+            "group": "build"
+        },
+        {
+            "type": "shell",
+            "label": "Build ROM and RAM images",
+            "command": "node",
+            "args": [
+                "${workspaceFolder}/burn.js"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
             "group": {
                 "kind": "build",
                 "isDefault": true
-            }
+            },
+            "problemMatcher": [
+                "$eslint-compact"
+            ]
         }
     ],
     "version": "2.0.0"

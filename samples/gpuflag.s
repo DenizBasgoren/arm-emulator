@@ -11,7 +11,7 @@ f6: .ascii "!!~!!~!!~!~!!~!!~!!~!!~!"
 
 .section .text
 
-initial_sp:        .word    0x200FFFFF
+initial_sp:        .word    0x200FFFF0
 reset_vector:     .word     _start
 
 _start:
@@ -77,7 +77,7 @@ strh r1, [r0, #34]          // src_y = 0
 
         add r4, #1
 
-        ldr r5, =#0x40000
+        ldr r5, =#0x10000
         .wait:
         sub r5, #1
         bne .wait

@@ -155,6 +155,46 @@ void load_from_memory(uint32_t *destination, uint32_t address, int n_bytes) {
         peripheral_read(address, destination, n_bytes);
 }
 
+struct range rangeOf(int from) {
+    
+    struct range new;
+
+    if(from >= ROM_MIN && from <= ROM_MAX) {
+        new.exists = 1;
+        new.min = (char*) ROM_MIN;
+        new.max = (char*) ROM_MAX;
+        new.len = ROM_LEN;
+        new.real = from - ROM_MIN + rom;
+        new.real_min = rom;
+        new.real_max = rom + new.len - 1;
+    }
+    else if(from >= RAM_MIN && from <= RAM_MAX) { 
+        new.exists = 1;
+        new.min = (char*) RAM_MIN;
+        new.max = (char*) RAM_MAX;
+        new.len = RAM_LEN;
+        new.real = from - RAM_MIN + ram;
+        new.real_min = ram;
+        new.real_max = ram + new.len - 1;
+    }
+    else if(from >= GPU_MIN && from <= GPU_MAX) {
+        new.exists = 1;
+        new.min = (char*) GPU_MIN;
+        new.max = (char*) GPU_MAX;
+        new.len = GPU_LEN;
+        new.real = from - GPU_MIN + gpu;
+        new.real_min = gpu;
+        new.real_max = gpu + new.len - 1;
+    }
+    else {
+        new.exists = 0;
+    }
+
+    return new;
+        
+}
+
+
 //Fetches an instruction from ROM, decodes and executes it
 int32_t execute_next( int is_debug_mode )
 {

@@ -1,7 +1,7 @@
 /*
 
 How to use:
-let dir = 'path/to/src/'	<- Don't forget last /
+let dir = 'path/to/src/'
 let arr = `
 	some.s another.s		<- These will be passed to arm-none-eabi-as
 	main.c apple.c			<- These will be passed to arm-none-eabi-gcc
@@ -11,11 +11,10 @@ let arr = `
 */
 
 // EDIT HERE
-let dir = 'samples/gpu_sample/'
+let dir = 'samples'
 let arr = `
 
-vectable.s
-main.c
+gpuflag.s
 
 `
 // EDIT END
@@ -43,6 +42,7 @@ function prependDir(entry) {
 	}).join(' ')
 }
 
+if (dir[dir.length-1] != '/') dir = dir.trim() + '/'
 
 let cmds = []
 arr.split('\n').filter(line => !/$\s*^/.test(line) ).forEach(entry => {

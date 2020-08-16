@@ -151,22 +151,24 @@ static int gpu_update() {
 	if ( t ) SDL_DestroyTexture( t );
 	t = NULL;
 
-	int channel, nBytes;
+	int channel, bytes_per_pixel;
 	if ( p->texture_channel == 3 ) {
 		channel = SDL_PIXELFORMAT_RGB24;
-		nBytes = 3;
+		bytes_per_pixel = 3;
 	}
 	else if ( p -> texture_channel == 4) {
 		channel = SDL_PIXELFORMAT_RGBA8888;
-		nBytes = 4;
+		bytes_per_pixel = 4;
 	}
 	else return -1;
 
-	// TODO
-	if ( p->texture_data_addr - ROM_MIN  +
-		p->texture_w * p->texture_h * nBytes > ROM_LEN ) {
-			return -1;
-	}
+	struct range new = rangeOf(p->texture_data_addr);
+	if (!new.exists) return -1;
+
+	int bytes_in_texture = p->texture_w * p->texture_h * bytes_per_pixel;
+
+	// if image is larger than available memory
+	if ( new.real + bytes_in_texture -1 > new.real_max) return -1;
 
 	textures[p->selected_slot ] = SDL_CreateTexture(
 		renderer,
@@ -177,8 +179,8 @@ static int gpu_update() {
 	
 	SDL_UpdateTexture( textures[p->selected_slot],
 					NULL,
-					p->texture_data_addr - ROM_MIN + rom,
-					p->texture_w * nBytes );
+					new.real,
+					p->texture_w * bytes_per_pixel );
 
 	return 0;
 }
