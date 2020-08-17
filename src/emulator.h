@@ -77,3 +77,5 @@ struct range {
 };
 
 struct range rangeOf(int from);
+
+extern int is_debug_mode;

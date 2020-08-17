@@ -20,6 +20,7 @@ struct cpu_t cpu;
 uint8_t rom[ROM_LEN];
 uint8_t ram[RAM_LEN];
 uint8_t gpu[GPU_LEN];
+int is_debug_mode;
 
 int32_t execute_next( int is_debug_mode );
 void update_nz_flags(int32_t reg);
@@ -68,10 +69,10 @@ int32_t main(int32_t argc, char* argv[])
     PC &= ~1;
 
     // PC always points 4 bytes after current instruction.
-    PC += 2;
+    // PC += 2;
 
     // on debug mode, execution breaks after every instruction
-    int is_debug_mode = argc == 4 && !strcmp(argv[3], "-debug");
+    is_debug_mode = argc == 4 && !strcmp(argv[3], "-debug");
 
     // activate timer
     debug_lastTime = clock();
@@ -198,12 +199,9 @@ struct range rangeOf(int from) {
 //Fetches an instruction from ROM, decodes and executes it
 int32_t execute_next( int is_debug_mode )
 {
-    uint16_t inst = rom[PC - 2] | rom[PC - 1] << 8;
-    PC += 2;
-    // at this point, PC = current inst + 4
+    uint16_t inst = rom[PC] | rom[PC + 1] << 8;
 
     if (is_debug_mode) {
-        printf("\n\nInstruction 0x%08X 0x%04X\n", PC - 4, inst);
         debug_dialog();
     }
 
@@ -228,6 +226,7 @@ int32_t execute_next( int is_debug_mode )
             else RESET_BIT(FLG, FLG_C);
         }
 
+        PC += 2;
         return 0;
     }
 
@@ -253,6 +252,7 @@ int32_t execute_next( int is_debug_mode )
 
         update_nz_flags(rc);
 
+        PC += 2;
         return 0;
     }
 
@@ -276,6 +276,7 @@ int32_t execute_next( int is_debug_mode )
             else RESET_BIT(FLG, FLG_C);
         }
 
+        PC += 2;
         return 0;
     }
 
@@ -293,6 +294,7 @@ int32_t execute_next( int is_debug_mode )
         update_nz_flags(rc);
         update_vc_flags_in_addition(ra,rb,rc);
 
+        PC += 2;
         return 0;
     }
 
@@ -310,6 +312,7 @@ int32_t execute_next( int is_debug_mode )
         update_nz_flags(rc);
         update_vc_flags_in_subtraction(ra,rb,rc);
 
+        PC += 2;
         return 0;
     }
 
@@ -326,6 +329,7 @@ int32_t execute_next( int is_debug_mode )
         update_nz_flags(rc);
         update_vc_flags_in_addition(ra,immed, rc);
 
+        PC += 2;
         return 0;
     }
 
@@ -342,6 +346,7 @@ int32_t execute_next( int is_debug_mode )
         update_nz_flags(rc);
         update_vc_flags_in_subtraction(ra,immed,rc);
 
+        PC += 2;
         return 0;
     }
 
@@ -353,6 +358,7 @@ int32_t execute_next( int is_debug_mode )
         cpu.reg[rd] = immed;
 
         update_nz_flags( cpu.reg[rd] );
+        PC += 2;
         return 0;
     }
 
@@ -367,6 +373,7 @@ int32_t execute_next( int is_debug_mode )
         update_nz_flags(dif);
         update_vc_flags_in_subtraction(ra,immed,dif);
 
+        PC += 2;
         return 0;
     }
 
@@ -382,6 +389,7 @@ int32_t execute_next( int is_debug_mode )
         update_nz_flags(rc);
         update_vc_flags_in_addition(ra,immed,rc);
 
+        PC += 2;
         return 0;
     }
 
@@ -397,6 +405,7 @@ int32_t execute_next( int is_debug_mode )
         update_nz_flags(rc);
         update_vc_flags_in_subtraction(ra,immed,rc); 
 
+        PC += 2;
         return 0;
     }
 
@@ -411,6 +420,7 @@ int32_t execute_next( int is_debug_mode )
         cpu.reg[rd] = rc;
         
         update_nz_flags(rc);
+        PC += 2;
         return 0;
     }
 
@@ -425,6 +435,7 @@ int32_t execute_next( int is_debug_mode )
         cpu.reg[rd] = rc;
         
         update_nz_flags(rc);
+        PC += 2;
         return 0;
     }
 
@@ -447,6 +458,8 @@ int32_t execute_next( int is_debug_mode )
             if (carry) SET_BIT(FLG, FLG_C);
             else RESET_BIT(FLG, FLG_C);
         }
+
+        PC += 2;
         return 0;
     }
 
@@ -470,6 +483,7 @@ int32_t execute_next( int is_debug_mode )
             else RESET_BIT(FLG, FLG_C);
         }
 
+        PC += 2;
         return 0;
     }
 
@@ -492,6 +506,7 @@ int32_t execute_next( int is_debug_mode )
             else RESET_BIT(FLG, FLG_C);
         }
 
+        PC += 2;
         return 0;
     }
 
@@ -510,6 +525,7 @@ int32_t execute_next( int is_debug_mode )
         update_nz_flags(rc);
         update_vc_flags_in_addition(ra, rb+carry, rc);
 
+        PC += 2;
         return 0;
     }
 
@@ -528,6 +544,7 @@ int32_t execute_next( int is_debug_mode )
         update_nz_flags(rc);
         update_vc_flags_in_subtraction(ra, rb+carry, rc);
 
+        PC += 2;
         return 0;
     }
 
@@ -548,6 +565,8 @@ int32_t execute_next( int is_debug_mode )
             if (carry) SET_BIT(FLG, FLG_C);
             else RESET_BIT(FLG, FLG_C);
         }
+
+        PC += 2;
         return 0;
     }
 
@@ -561,6 +580,7 @@ int32_t execute_next( int is_debug_mode )
         uint32_t rc = ra & rb;
         
         update_nz_flags(rc);
+        PC += 2;
         return 0;
     }
 
@@ -575,6 +595,7 @@ int32_t execute_next( int is_debug_mode )
         cpu.reg[rd] = rc;
         
         update_nz_flags(rc);
+        PC += 2;
         return 0;
     }
 
@@ -589,7 +610,8 @@ int32_t execute_next( int is_debug_mode )
         
         update_nz_flags(rc);
         update_vc_flags_in_subtraction(ra,rb,rc);
- 
+
+        PC += 2;
         return 0;
     }
 
@@ -604,7 +626,8 @@ int32_t execute_next( int is_debug_mode )
         
         update_nz_flags(rc);
         update_vc_flags_in_addition(ra,rb,rc);
- 
+
+        PC += 2;
         return 0;
     }
 
@@ -617,7 +640,8 @@ int32_t execute_next( int is_debug_mode )
         uint32_t rb = cpu.reg[rm];
         uint32_t rc = ra | rb;
         cpu.reg[rd] = rc;
-        
+
+        PC += 2;
         update_nz_flags(rc);
         return 0;
     }
@@ -633,6 +657,7 @@ int32_t execute_next( int is_debug_mode )
         cpu.reg[rd] = rc;
         
         update_nz_flags(rc);
+        PC += 2;
         return 0;
     }
 
@@ -647,6 +672,7 @@ int32_t execute_next( int is_debug_mode )
         cpu.reg[rd] = rc;
         
         update_nz_flags(rc);
+        PC += 2;
         return 0;
     }
 
@@ -660,6 +686,7 @@ int32_t execute_next( int is_debug_mode )
         cpu.reg[rd] = rc;
         
         update_nz_flags(rc);
+        PC += 2;
         return 0;
     }
 
@@ -672,6 +699,7 @@ int32_t execute_next( int is_debug_mode )
         uint32_t ra = cpu.reg[rm];
         cpu.reg[rd] = ra;
         
+        PC += 2;
         return 0;
     }
 
@@ -686,6 +714,7 @@ int32_t execute_next( int is_debug_mode )
         ra += rb;
         cpu.reg[ld] = ra;
 
+        PC += 2;
         return 0;
     }
 
@@ -700,6 +729,7 @@ int32_t execute_next( int is_debug_mode )
         ra = rb;
         cpu.reg[rd] = ra;
         
+        PC += 2;
         return 0;
     }
 
@@ -713,7 +743,11 @@ int32_t execute_next( int is_debug_mode )
         
         ra += rb;
         cpu.reg[rd+8] = ra;
-        
+
+        if (rd != 7) { // increment only if we didnt set to it
+            PC += 2;
+        }
+
         return 0;
     }
 
@@ -728,6 +762,10 @@ int32_t execute_next( int is_debug_mode )
         ra = rb;
         cpu.reg[rd+8] = ra;
         
+        if (rd != 7) { // increment only if we didnt set to it
+            PC += 2;
+        }
+
         return 0;
     }
 
@@ -742,6 +780,10 @@ int32_t execute_next( int is_debug_mode )
         ra += rb;
         cpu.reg[rd+8] = ra;
         
+        if (rd != 7) { // increment only if we didnt set to it
+            PC += 2;
+        }
+
         return 0;
     }
 
@@ -756,6 +798,10 @@ int32_t execute_next( int is_debug_mode )
         ra = rb;
         cpu.reg[rd+8] = ra;
         
+        if (rd != 7) { // increment only if we didnt set to it
+            PC += 2;
+        }
+
         return 0;
     }
 
@@ -774,6 +820,7 @@ int32_t execute_next( int is_debug_mode )
         update_nz_flags(dif);
         update_vc_flags_in_subtraction(ra,rb,dif);
 
+        PC += 2;
         return 0;
     }
 
@@ -790,6 +837,7 @@ int32_t execute_next( int is_debug_mode )
         update_nz_flags(dif);
         update_vc_flags_in_subtraction(ra,rb,dif);
 
+        PC += 2;
         return 0;
     }
 
@@ -806,25 +854,26 @@ int32_t execute_next( int is_debug_mode )
         update_nz_flags(dif);
         update_vc_flags_in_subtraction(ra,rb,dif);
 
+        PC += 2;
         return 0;
     }
     
     // BX Rm
     else if(GET_BITS(inst, 15, 9) == 0b010001110){
         uint8_t rm = GET_BITS(inst, 6, 4);
-        PC = cpu.reg[rm] & ~1;
-
+        
+        PC = cpu.reg[rm] & ~1; // TODO TEST
         return 0;
     }
 
     // BLX Rm
-    else if(GET_BITS(inst, 15, 9) == 0b010001111){
+    else if(GET_BITS(inst, 15, 9) == 0b010001111){ // TODO TEST
         uint8_t rm = GET_BITS(inst, 6, 4);
 
         // here, temp is needed, because if cpu.reg[rm] == lr, we lose the value in lr
-        uint32_t temp = PC; // +1 because thumb=1
-        PC = cpu.reg[rm]; // thumb mode
-        LR = temp;
+        uint32_t temp = PC;
+        PC = cpu.reg[rm] & ~1;
+        LR = temp + 2; // return to next instr
 
         return 0;
     }
@@ -835,7 +884,9 @@ int32_t execute_next( int is_debug_mode )
         uint8_t rd = GET_BITS(inst, 10, 3);
         uint8_t immed = GET_BITS(inst, 7, 8);
         
-        load_from_memory( &cpu.reg[rd], PC + immed * 4, 4);
+        load_from_memory( &cpu.reg[rd], PC + immed * 4 + 4, 4);
+
+        PC += 2;
         return 0;
     }
 
@@ -851,11 +902,11 @@ int32_t execute_next( int is_debug_mode )
 
         store_to_memory( cpu.reg[rd], addr, 4);
 
+        PC += 2;
         return 0;
     }
 
     // STRH Rd, [Rn, Rm]
-    // not tested
     else if (GET_BITS(inst, 15, 7) == 0b0101001)
     {
         uint8_t rm = GET_BITS(inst, 8, 3);
@@ -866,11 +917,11 @@ int32_t execute_next( int is_debug_mode )
 
         store_to_memory( cpu.reg[rd], addr, 2);
 
+        PC += 2;
         return 0;
     }
 
     // STRB Rd, [Rn, Rm]
-    // not tested
     else if (GET_BITS(inst, 15, 7) == 0b0101010)
     {
         uint8_t rm = GET_BITS(inst, 8, 3);
@@ -881,11 +932,11 @@ int32_t execute_next( int is_debug_mode )
 
         store_to_memory( cpu.reg[rd], addr, 1);
 
+        PC += 2;
         return 0;
     }
 
     // LDRSB Rd, [Rn, Rm]
-    // not tested
     else if (GET_BITS(inst, 15, 7) == 0b0101011)
     {
         uint8_t rm = GET_BITS(inst, 8, 3);
@@ -898,6 +949,7 @@ int32_t execute_next( int is_debug_mode )
         cpu.reg[rd] <<= 24; // sign extended
         cpu.reg[rd] >>= 24;
 
+        PC += 2;
         return 0;
     }
 
@@ -913,11 +965,11 @@ int32_t execute_next( int is_debug_mode )
 
         load_from_memory( &cpu.reg[rd], addr, 4);
 
+        PC += 2;
         return 0;
     }
 
     // LDRH Rd, [Rn, Rm]
-    // not tested
     else if (GET_BITS(inst, 15, 7) == 0b0101101)
     {
         uint8_t rm = GET_BITS(inst, 8, 3);
@@ -929,11 +981,11 @@ int32_t execute_next( int is_debug_mode )
         cpu.reg[rd] = 0; // zero extended
         load_from_memory( &cpu.reg[rd], addr, 2);
 
+        PC += 2;
         return 0;
     }
 
     // LDRB Rd, [Rn, Rm]
-    // not tested
     else if (GET_BITS(inst, 15, 7) == 0b0101110)
     {
         uint8_t rm = GET_BITS(inst, 8, 3);
@@ -945,11 +997,11 @@ int32_t execute_next( int is_debug_mode )
         cpu.reg[rd] = 0; // zero extended
         load_from_memory( &cpu.reg[rd], addr, 1);
 
+        PC += 2;
         return 0;
     }
 
     // LDRSH Rd, [Rn, Rm]
-    // not tested
     else if (GET_BITS(inst, 15, 7) == 0b0101111)
     {
         uint8_t rm = GET_BITS(inst, 8, 3);
@@ -962,6 +1014,7 @@ int32_t execute_next( int is_debug_mode )
         cpu.reg[rd] <<= 16; // sign extended
         cpu.reg[rd] >>= 16;
 
+        PC += 2;
         return 0;
     }
 
@@ -976,6 +1029,7 @@ int32_t execute_next( int is_debug_mode )
 
         store_to_memory( cpu.reg[rd], addr, 4);
 
+        PC += 2;
         return 0;
     }
 
@@ -990,11 +1044,11 @@ int32_t execute_next( int is_debug_mode )
 
         load_from_memory( &cpu.reg[rd], addr, 4);
 
+        PC += 2;
         return 0;
     }
 
     // STRB Ld, [Ln, immed]
-    // not tested
     else if (GET_BITS(inst, 15, 5) == 0b01110) {
         uint8_t immed = GET_BITS(inst, 10, 5);
         uint8_t rn = GET_BITS(inst, 5, 3);
@@ -1004,11 +1058,11 @@ int32_t execute_next( int is_debug_mode )
 
         store_to_memory( cpu.reg[rd], addr, 1);
 
+        PC += 2;
         return 0;
     }
 
     // LDRB Ld, [Ln, immed]
-    // not tested
     else if (GET_BITS(inst, 15, 5) == 0b01111) {
         uint8_t immed = GET_BITS(inst, 10, 5);
         uint8_t rn = GET_BITS(inst, 5, 3);
@@ -1016,7 +1070,10 @@ int32_t execute_next( int is_debug_mode )
 
         uint32_t addr = cpu.reg[rn] + immed;
 
+        cpu.reg[rd] = 0;
         load_from_memory( &cpu.reg[rd], addr, 1);
+
+        PC += 2;
         return 0;
     }
 
@@ -1029,6 +1086,8 @@ int32_t execute_next( int is_debug_mode )
         uint32_t addr = cpu.reg[rn] + 2 * immed;
 
         store_to_memory( cpu.reg[rd], addr, 2);
+
+        PC += 2;
         return 0;
     }
 
@@ -1040,8 +1099,10 @@ int32_t execute_next( int is_debug_mode )
 
         uint32_t addr = cpu.reg[rn] + 2 * immed;
 
+        cpu.reg[rd] = 0; // zero extended
         load_from_memory( &cpu.reg[rd], addr, 2);
 
+        PC += 2;
         return 0;
     }
 
@@ -1055,7 +1116,7 @@ int32_t execute_next( int is_debug_mode )
 
         store_to_memory( cpu.reg[rd], addr, 4);
 
-
+        PC += 2;
         return 0;
     }
 
@@ -1069,6 +1130,7 @@ int32_t execute_next( int is_debug_mode )
 
         load_from_memory( &cpu.reg[rd], addr, 4);
 
+        PC += 2;
         return 0;
     }
 
@@ -1085,6 +1147,7 @@ int32_t execute_next( int is_debug_mode )
         // Adress must be divisible by 4. so, truncate last two bits.
         cpu.reg[rd] &= ~3;
 
+        PC += 2;
         return 0;
     }
 
@@ -1100,6 +1163,7 @@ int32_t execute_next( int is_debug_mode )
         // Adress must be divisible by 4. so, truncate last two bits.
         cpu.reg[rd] &= ~3;
 
+        PC += 2;
         return 0;
     }
 
@@ -1111,6 +1175,7 @@ int32_t execute_next( int is_debug_mode )
         uint32_t immed_times_4 = immed * 4;
         SP = SP + immed_times_4;
 
+        PC += 2;
         return 0;
     }
 
@@ -1121,11 +1186,11 @@ int32_t execute_next( int is_debug_mode )
         uint32_t immed_times_4 = immed * 4;
         SP = SP - immed_times_4;
 
+        PC += 2;
         return 0;
     }
 
     // SXTH Ld, Lm
-    // not tested
     else if (GET_BITS(inst, 15, 10) == 0b1011001000) {
         uint8_t rm = GET_BITS(inst, 5, 3);
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -1134,11 +1199,12 @@ int32_t execute_next( int is_debug_mode )
         temp >>= 16;
 
         cpu.reg[rd] = temp;
+
+        PC += 2;
         return 0;
     }
 
     // SXTB Ld, Lm
-    // not tested
     else if (GET_BITS(inst, 15, 10) == 0b1011001001) {
         uint8_t rm = GET_BITS(inst, 5, 3);
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -1147,11 +1213,12 @@ int32_t execute_next( int is_debug_mode )
         temp >>= 24;
 
         cpu.reg[rd] = temp;
+
+        PC += 2;
         return 0;
     }
 
     // UXTH Ld, Lm
-    // not tested
     else if (GET_BITS(inst, 15, 10) == 0b1011001010) {
         uint8_t rm = GET_BITS(inst, 5, 3);
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -1160,11 +1227,12 @@ int32_t execute_next( int is_debug_mode )
         temp >>= 16;
 
         cpu.reg[rd] = temp;
+
+        PC += 2;
         return 0;
     }
 
     // UXTB Ld, Lm
-    // not tested
     else if (GET_BITS(inst, 15, 10) == 0b1011001011) {
         uint8_t rm = GET_BITS(inst, 5, 3);
         uint8_t rd = GET_BITS(inst, 2, 3);
@@ -1173,6 +1241,8 @@ int32_t execute_next( int is_debug_mode )
         temp >>= 24;
 
         cpu.reg[rd] = temp;
+
+        PC += 2;
         return 0;
     }
 
@@ -1187,6 +1257,7 @@ int32_t execute_next( int is_debug_mode )
                         GET_BITS(r, 15, 8) << 16 |
                         GET_BITS(r, 7, 8) << 24;
 
+        PC += 2;
         return 0;
     }
 
@@ -1201,6 +1272,7 @@ int32_t execute_next( int is_debug_mode )
                         GET_BITS(r, 15, 8) |
                         GET_BITS(r, 7, 8) << 8;
 
+        PC += 2;
         return 0;
     }
 
@@ -1216,6 +1288,7 @@ int32_t execute_next( int is_debug_mode )
         cpu.reg[rd] <<= 16;
         cpu.reg[rd] >>= 16;
 
+        PC += 2;
         return 0;
     }
 
@@ -1242,6 +1315,7 @@ int32_t execute_next( int is_debug_mode )
         }
 
         SP = addr;
+        PC += 2;
         return 0;
     }
 
@@ -1260,9 +1334,13 @@ int32_t execute_next( int is_debug_mode )
                 addr += 4;
             }
         }
+        
         if(r == 1){
             load_from_memory( &PC, addr, 4);
             addr += 4;
+        }
+        else {
+            PC += 2; // TODO TEST
         }
 
         SP = addr;
@@ -1321,13 +1399,16 @@ int32_t execute_next( int is_debug_mode )
             debug_storeString(input, R0);
         }
 
-        else return -1;
+        else {
+            puts("Breakpoint with unknown code");
+            return -1;
+        }
 
+        PC += 2;
         return 0;
     }
 
     // STMIA Ln! , reglist
-    // not tested
     else if (GET_BITS(inst, 15, 5) == 0b11000) {
         uint8_t rn = GET_BITS(inst, 10, 3);
         uint8_t list = GET_BITS(inst, 7, 8);
@@ -1343,11 +1424,11 @@ int32_t execute_next( int is_debug_mode )
         // writeback
         load_from_memory( &cpu.reg[rn], addr-4, 4);
 
+        PC += 2;
         return 0;
     }
 
     // LDMIA Ln! , reglist
-    // not tested
     else if (GET_BITS(inst, 15, 5) == 0b11001) {
         uint8_t rn = GET_BITS(inst, 10, 3);
         uint8_t list = GET_BITS(inst, 7, 8);
@@ -1363,6 +1444,7 @@ int32_t execute_next( int is_debug_mode )
         // writeback
         load_from_memory( &cpu.reg[rn], addr-4, 4);
 
+        PC += 2;
         return 0;
     }
 
@@ -1424,14 +1506,19 @@ int32_t execute_next( int is_debug_mode )
         if (should_branch == 1) {
             int8_t offset = GET_BITS(inst, 7, 8);
 
-            PC += offset * 2 + 2;
+            PC += offset * 2 + 4;
         }
+        else {
+            PC += 2;
+        }
+
         return 0;
     }
 
     // SWI immed
     else if (GET_BITS(inst, 15, 8) == 0b11011111) {
         // TODO
+        PC += 2;
         return 0;
     }
 
@@ -1444,31 +1531,33 @@ int32_t execute_next( int is_debug_mode )
             offset <<= 5;
             offset >>= 5;
         }
-        PC += offset * 2 + 2; // +2 more will be added on the next cycle
+        PC += offset * 2 + 4;
         return 0;
     }
 
+    // TODO!
     // BLX ( inst+4 + (poff<<12) + unsigned_offset*4 ) &~ 3
     else if(GET_BITS(inst, 15, 5) == 0b11101) {
         int32_t offset = GET_BITS(inst, 10, 10);
 
-        uint16_t prev_inst = rom[PC - 6] | rom[PC - 5] << 8;
+        uint16_t prev_inst = rom[PC - 2] | rom[PC - 1] << 8;
         if(GET_BITS(prev_inst, 15, 5) != 0b11110){
-            fprintf(stderr, "BLX: previous instruction is not a branch prefix instruction 0x%08X  0x%04X\n", PC - 4, prev_inst);
+            fprintf(stderr, "BLX: previous instruction is not a branch prefix instruction 0x%08X  0x%04X\n", PC - 2, prev_inst);
             return 1;
         }
 
         int32_t poff = GET_BITS(prev_inst, 10, 11);
 
-        // if negative address, fill left side with 1's
-        if(GET_BITS(poff, 10, 1) == 1){
-            poff <<= 21;
-            poff >>= 21;
-        }
+        int32_t toff = (poff << 12) | (offset << 2); // total offset
+        toff <<= 10;
+        toff >>= 10;
+
+        // toff:
+        // 22..=12 poff
+        // 11..=2 off
         
-        LR = PC; // thumb mode
-        PC = (PC + (poff<<12) + offset*4) & ~3; // NOTE: -2, because offset is rel to prefix instruction, not this one
-        // PC--; // thumb mode
+        LR = PC + 2; // return to next instr
+        PC = (PC + toff + 4 - 2) & ~3; // -2 because offset relative to prefix
         return 0;
     }
     
@@ -1476,35 +1565,37 @@ int32_t execute_next( int is_debug_mode )
     else if(GET_BITS(inst, 15, 5) == 0b11110) {
         
         // just ignore, and handle in bl,blx
+        PC += 2;
         return 0;
     }
 
+    // TODO !
     // BL inst+4 + (poff<<12) + unsigned_offset*2
     else if(GET_BITS(inst, 15, 5) == 0b11111) {
         int32_t offset = GET_BITS(inst, 10, 11);
 
-        uint16_t prev_inst = rom[PC - 6] | rom[PC - 5] << 8;
+        uint16_t prev_inst = rom[PC - 2] | rom[PC - 1] << 8;
 
         if(GET_BITS(prev_inst, 15, 5) != 0b11110){
-            fprintf(stderr, "BLX: previous instruction is not a branch prefix instruction 0x%08X  0x%04X\n", PC - 4, prev_inst);
+            fprintf(stderr, "BL: previous instruction is not a branch prefix instruction 0x%08X  0x%04X\n", PC - 2, prev_inst);
             return 1;
         }
 
         int32_t poff = GET_BITS(prev_inst, 10, 11);
+        int32_t toff = (poff << 12) | (offset << 1) ; // total offset
+        toff <<= 10;
+        toff >>= 10;
 
-        // if negative address, fill left side with 1's
-        if(GET_BITS(poff, 10, 1) == 1){
-            poff <<= 21;
-            poff >>= 21;
-        }
-
-        LR = PC; // thumb mode
-        PC += (poff<<12) + offset*2; // NOTE: -2, because offset is rel to prefix instruction, not this one
-        // PC--; // thumb mode
+        // toff:
+        // 22..=12 poff
+        // 11..=1 off
+        
+        LR = PC + 2; // return to next instr
+        PC += toff + 4 - 2; // -2 because offset relative to prefix
         return 0;
     }
 
-    fprintf(stderr, "invalid instruction 0x%08X 0x%04X\n", PC - 4, inst);
+    fprintf(stderr, "invalid instruction 0x%08X 0x%04X\n", PC, inst);
     return 1;
 }
 

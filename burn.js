@@ -11,10 +11,11 @@ let arr = `
 */
 
 // EDIT HERE
-let dir = 'samples'
+let dir = 'samples/gol'
 let arr = `
 
-gpuflag.s
+vectable.s
+main.c
 
 `
 // EDIT END
@@ -73,7 +74,7 @@ arr.split('\n').filter(line => !/$\s*^/.test(line) ).forEach(entry => {
 
 
 let n = 'dist-linux/armapp.elf'
-cmds.push(`arm-none-eabi-ld ${rels.join(' ')} -T linker.ld -L /usr/lib/gcc/arm-none-eabi/10.1.0/thumb/v6-m/nofp/ -lgcc -o ${n}`)
+cmds.push(`arm-none-eabi-ld ${rels.join(' ')} -T linker.ld -L /usr/lib/gcc/arm-none-eabi/10.2.0/thumb/v6-m/nofp/ -lgcc -o ${n}`)
 cmds.push(`arm-none-eabi-objcopy -O binary -j .text ${n} dist-linux/rom`)
 cmds.push(`arm-none-eabi-objcopy -O binary -j .data ${n} dist-linux/ram`)
 

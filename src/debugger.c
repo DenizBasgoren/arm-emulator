@@ -17,17 +17,17 @@ int debug_inst_elapsed = 0;
 // it lets you see current register values, and memory contents.
 // for a per-instruction debugging mode, add -debug flag to args
 void debug_dialog () {    
-    uint16_t inst = rom[PC - 4] | rom[PC - 3] << 8;
-
+    uint16_t next_inst = rom[PC] | rom[PC+1] << 8;
+    
 
     puts("\x1b[2J\x1b[1;1H");
     puts("Debug instruction!");
 
-    if(GET_BITS(inst, 15, 5) == 0b11110) {
+    if(GET_BITS(next_inst, 15, 5) == 0b11110) {
         puts("Note: This is a branch prefix instruction");
     }
 
-    printf("Next instruction: 0x%04x @ 0x%08x \n\n", inst, PC - 4);
+    printf("Next instruction: 0x%04x @ 0x%08x \n\n", next_inst, PC);
     debug_printRegisters();
 
     uint32_t from, to;
@@ -38,6 +38,7 @@ void debug_dialog () {
         puts("To continue to program, type q");
         puts("To disassemble, type d");
         puts("To print registers, type r");
+        puts("To toggle -debug, type t");
         printf(WHITE_TERM);
 
         char input_string[100];
@@ -53,6 +54,10 @@ void debug_dialog () {
         }
         else if ( *input_string == 'r') {
             debug_printRegisters();
+            continue;
+        }
+        else if ( *input_string == 't') {
+            is_debug_mode = 1 - is_debug_mode;
             continue;
         }
         else {
