@@ -83,14 +83,14 @@ void _start()
     setTarget(0, 0, 50, 600);
 
     setColor(0);
-    float f = 30 / 100.0f;
+    //float f = 30 / 100.0f;
     //testFn(f);
     i16 pos_x = 0;
     while(1)
     {
         gpuClear(0);
-        asm("bkpt 0");
-        setSrc(pos_x/100.0f, 0, 1, 6);
+        //asm("bkpt 0");
+        setSrc(pos_x/100, 0, 1, 6);
         setTarget(pos_x, 0, 50, 600);
         gpuDraw(3);
         for(int wait = 0; wait < 0x200000; wait++);

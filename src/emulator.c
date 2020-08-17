@@ -65,11 +65,8 @@ int32_t main(int32_t argc, char* argv[])
     //Following 4 bytes in ROM initializes the PC
     load_from_memory( &PC, ROM_MIN+4, 4);
 
-    // Always thumb mode
-    PC &= ~1;
-
     // PC always points 4 bytes after current instruction.
-    // PC += 2;
+    PC += 4;
 
     // on debug mode, execution breaks after every instruction
     is_debug_mode = argc == 4 && !strcmp(argv[3], "-debug");
@@ -80,6 +77,9 @@ int32_t main(int32_t argc, char* argv[])
     // main loop
     while (1)
     {
+        // If last bit is 1 (thumb mode), make 0
+        PC &= ~1;
+        
         int err = execute_next( is_debug_mode );
         debug_inst_elapsed++;
 
@@ -199,7 +199,7 @@ struct range rangeOf(int from) {
 //Fetches an instruction from ROM, decodes and executes it
 int32_t execute_next( int is_debug_mode )
 {
-    uint16_t inst = rom[PC] | rom[PC + 1] << 8;
+    uint16_t inst = rom[PC-4] | rom[PC - 3] << 8; // !!!
 
     if (is_debug_mode) {
         debug_dialog();
@@ -862,7 +862,7 @@ int32_t execute_next( int is_debug_mode )
     else if(GET_BITS(inst, 15, 9) == 0b010001110){
         uint8_t rm = GET_BITS(inst, 6, 4);
         
-        PC = cpu.reg[rm] & ~1; // TODO TEST
+        PC = cpu.reg[rm]; // TODO TEST
         return 0;
     }
 
@@ -872,8 +872,9 @@ int32_t execute_next( int is_debug_mode )
 
         // here, temp is needed, because if cpu.reg[rm] == lr, we lose the value in lr
         uint32_t temp = PC;
-        PC = cpu.reg[rm] & ~1;
+        PC = cpu.reg[rm];
         LR = temp + 2; // return to next instr
+        LR += 1; // plus one to be compatible with thumb code
 
         return 0;
     }
@@ -884,7 +885,7 @@ int32_t execute_next( int is_debug_mode )
         uint8_t rd = GET_BITS(inst, 10, 3);
         uint8_t immed = GET_BITS(inst, 7, 8);
         
-        load_from_memory( &cpu.reg[rd], PC + immed * 4 + 4, 4);
+        load_from_memory( &cpu.reg[rd], PC + immed * 4, 4); // !!!
 
         PC += 2;
         return 0;
@@ -1142,7 +1143,7 @@ int32_t execute_next( int is_debug_mode )
         uint8_t immed = GET_BITS(inst, 7, 8);
         uint32_t immed_times_4 = immed * 4;
 
-        cpu.reg[rd] = PC + immed_times_4;
+        cpu.reg[rd] = PC + immed_times_4; // !!!
 
         // Adress must be divisible by 4. so, truncate last two bits.
         cpu.reg[rd] &= ~3;
@@ -1540,9 +1541,9 @@ int32_t execute_next( int is_debug_mode )
     else if(GET_BITS(inst, 15, 5) == 0b11101) {
         int32_t offset = GET_BITS(inst, 10, 10);
 
-        uint16_t prev_inst = rom[PC - 2] | rom[PC - 1] << 8;
+        uint16_t prev_inst = rom[PC - 6] | rom[PC - 5] << 8; // !!!
         if(GET_BITS(prev_inst, 15, 5) != 0b11110){
-            fprintf(stderr, "BLX: previous instruction is not a branch prefix instruction 0x%08X  0x%04X\n", PC - 2, prev_inst);
+            fprintf(stderr, "BLX: previous instruction is not a branch prefix instruction 0x%08X  0x%04X\n", PC - 4, prev_inst);
             return 1;
         }
 
@@ -1557,6 +1558,7 @@ int32_t execute_next( int is_debug_mode )
         // 11..=2 off
         
         LR = PC + 2; // return to next instr
+        LR += 1; // plus one to be compatible with thumb code
         PC = (PC + toff + 4 - 2) & ~3; // -2 because offset relative to prefix
         return 0;
     }
@@ -1574,10 +1576,10 @@ int32_t execute_next( int is_debug_mode )
     else if(GET_BITS(inst, 15, 5) == 0b11111) {
         int32_t offset = GET_BITS(inst, 10, 11);
 
-        uint16_t prev_inst = rom[PC - 2] | rom[PC - 1] << 8;
+        uint16_t prev_inst = rom[PC - 6] | rom[PC - 5] << 8; // !!!
 
         if(GET_BITS(prev_inst, 15, 5) != 0b11110){
-            fprintf(stderr, "BL: previous instruction is not a branch prefix instruction 0x%08X  0x%04X\n", PC - 2, prev_inst);
+            fprintf(stderr, "BL: previous instruction is not a branch prefix instruction 0x%08X  0x%04X\n", PC - 6, prev_inst);
             return 1;
         }
 
@@ -1591,11 +1593,12 @@ int32_t execute_next( int is_debug_mode )
         // 11..=1 off
         
         LR = PC + 2; // return to next instr
+        LR += 1; // plus one to be compatible with thumb code
         PC += toff + 4 - 2; // -2 because offset relative to prefix
         return 0;
     }
 
-    fprintf(stderr, "invalid instruction 0x%08X 0x%04X\n", PC, inst);
+    fprintf(stderr, "invalid instruction 0x%08X 0x%04X\n", PC-4, inst); // !!!
     return 1;
 }
 

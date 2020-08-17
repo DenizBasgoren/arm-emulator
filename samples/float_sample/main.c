@@ -4,12 +4,19 @@
 #define i32 int
 #define f32 float
 
+f32 xd;
 
 void _start() {
-	i32 a = 5;
-	f32 b = 5;
+	float a = 0.1;
+	float b = 0.2;
 
-	if (a==b) {
-		asm("bkpt 0");
+	if (a+b==0.3f) {
+		asm("bkpt 3");
 	}
+	else {
+		asm("bkpt 3");
+		asm("bkpt 3");
+	}
+
+	while (1);
 }
