@@ -62,11 +62,17 @@ int32_t main(int32_t argc, char* argv[])
     //First 4 bytes in ROM specifies initializes the stack pointer
     load_from_memory( &SP, ROM_MIN, 4);
 
+    // SP must be word aligned
+    SP &= ~3;
+
     //Following 4 bytes in ROM initializes the PC
     load_from_memory( &PC, ROM_MIN+4, 4);
 
-    // PC always points 4 bytes after current instruction.
-    PC += 4;
+    // gcc will generate _start+1 for thumb, so truncate last bit
+    PC &= ~1;
+
+    // PC always points to the first byte of the instr to execute next.
+    // PC += 4; // WRONG!
 
     // on debug mode, execution breaks after every instruction
     is_debug_mode = argc == 4 && !strcmp(argv[3], "-debug");
@@ -77,8 +83,11 @@ int32_t main(int32_t argc, char* argv[])
     // main loop
     while (1)
     {
-        // If last bit is 1 (thumb mode), make 0
-        PC &= ~1;
+        // Last bit is never 1
+        if (PC % 2) {
+            puts("Alignment fault");
+            return -1;
+        }
         
         int err = execute_next( is_debug_mode );
         debug_inst_elapsed++;
@@ -199,7 +208,7 @@ struct range rangeOf(int from) {
 //Fetches an instruction from ROM, decodes and executes it
 int32_t execute_next( int is_debug_mode )
 {
-    uint16_t inst = rom[PC-4] | rom[PC - 3] << 8; // !!!
+    uint16_t inst = rom[PC] | rom[PC + 1] << 8; // !!!
 
     if (is_debug_mode) {
         debug_dialog();
@@ -862,7 +871,7 @@ int32_t execute_next( int is_debug_mode )
     else if(GET_BITS(inst, 15, 9) == 0b010001110){
         uint8_t rm = GET_BITS(inst, 6, 4);
         
-        PC = cpu.reg[rm]; // TODO TEST
+        PC = cpu.reg[rm] &~ 1; // TODO TEST
         return 0;
     }
 
@@ -872,7 +881,7 @@ int32_t execute_next( int is_debug_mode )
 
         // here, temp is needed, because if cpu.reg[rm] == lr, we lose the value in lr
         uint32_t temp = PC;
-        PC = cpu.reg[rm];
+        PC = cpu.reg[rm] &~ 1;
         LR = temp + 2; // return to next instr
         LR += 1; // plus one to be compatible with thumb code
 
@@ -885,7 +894,12 @@ int32_t execute_next( int is_debug_mode )
         uint8_t rd = GET_BITS(inst, 10, 3);
         uint8_t immed = GET_BITS(inst, 7, 8);
         
-        load_from_memory( &cpu.reg[rd], PC + immed * 4, 4); // !!!
+        // +4 here because of fetch decode execute cycles
+        load_from_memory( &cpu.reg[rd], (PC + 4 + immed * 4) & ~3 , 4); // !!!
+        // https://stackoverflow.com/questions/29586536/about-arm-pc-value-in-thumb-16-32bits-mixed-instructions-stream
+        // https://stackoverflow.com/questions/24091566/why-does-the-arm-pc-register-point-to-the-instruction-after-the-next-one-to-be-e
+        // https://soundcloud.com/university-of-cambridge/a-history-of-the-arm-architecture-and-the-lessons-learned-while-building-it
+        // https://en.wikipedia.org/wiki/Delay_slot
 
         PC += 2;
         return 0;
@@ -1143,7 +1157,9 @@ int32_t execute_next( int is_debug_mode )
         uint8_t immed = GET_BITS(inst, 7, 8);
         uint32_t immed_times_4 = immed * 4;
 
-        cpu.reg[rd] = PC + immed_times_4; // !!!
+        cpu.reg[rd] = PC + immed_times_4 + 4; // !!!
+        // +4 here because of fetch decode exec cycle.
+        // NOT TESTED, RARE
 
         // Adress must be divisible by 4. so, truncate last two bits.
         cpu.reg[rd] &= ~3;
@@ -1338,6 +1354,8 @@ int32_t execute_next( int is_debug_mode )
         
         if(r == 1){
             load_from_memory( &PC, addr, 4);
+            PC &= ~1; // Must be aligned
+
             addr += 4;
         }
         else {
@@ -1576,10 +1594,10 @@ int32_t execute_next( int is_debug_mode )
     else if(GET_BITS(inst, 15, 5) == 0b11111) {
         int32_t offset = GET_BITS(inst, 10, 11);
 
-        uint16_t prev_inst = rom[PC - 6] | rom[PC - 5] << 8; // !!!
+        uint16_t prev_inst = rom[PC - 2] | rom[PC - 1] << 8; // !!!
 
         if(GET_BITS(prev_inst, 15, 5) != 0b11110){
-            fprintf(stderr, "BL: previous instruction is not a branch prefix instruction 0x%08X  0x%04X\n", PC - 6, prev_inst);
+            fprintf(stderr, "BL: previous instruction is not a branch prefix instruction 0x%08X  0x%04X\n", PC - 2, prev_inst);
             return 1;
         }
 
@@ -1598,7 +1616,7 @@ int32_t execute_next( int is_debug_mode )
         return 0;
     }
 
-    fprintf(stderr, "invalid instruction 0x%08X 0x%04X\n", PC-4, inst); // !!!
+    fprintf(stderr, "invalid instruction 0x%08X 0x%04X\n", PC, inst); // !!!
     return 1;
 }
 

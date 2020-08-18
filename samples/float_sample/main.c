@@ -7,16 +7,11 @@
 f32 xd;
 
 void _start() {
-	float a = 0.1;
-	float b = 0.2;
+	float a = 0.1f;
+	float b = 0.2f;
 
-	if (a+b==0.3f) {
-		asm("bkpt 3");
-	}
-	else {
-		asm("bkpt 3");
-		asm("bkpt 3");
-	}
-
+	xd = a*b;
+	asm("bkpt 0");
+	
 	while (1);
 }

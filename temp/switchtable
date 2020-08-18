@@ -1,0 +1,31 @@
+
+	a: .byte #3					// char a = 3
+
+	ldr r3, =a
+	ldrb r3, [r3]				// r3 = a
+	cmp r3, #5
+	bhi end						// if r3 > 5 goto end
+
+	lsl r2, r3, #2				// r2 = r3 * 4				
+	ldr r3, =table
+	add r3, r3, r2				
+	ldr r3, [r3]				// r3 = table[r2]
+	bx r3						// goto r3
+
+	case1: 
+	...
+	case2: 
+	...
+	case3: 
+	...
+	case4: 
+	...
+	case5: 
+	...
+
+	end:
+	mov sp, r7
+	return
+
+	table:
+	28 00 00 00 1e 00 00 00 20 00 00 00 ...
