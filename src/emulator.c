@@ -27,8 +27,8 @@ void update_nz_flags(int32_t reg);
 void update_vc_flags_in_addition(int32_t o1, int32_t o2, int32_t res);
 void update_vc_flags_in_subtraction(int32_t o1, int32_t o2, int32_t res);
 void sigint_handler();
-void store_to_memory(uint32_t value, uint32_t address, int n_bytes);
-void load_from_memory(uint32_t *destination, uint32_t address, int n_bytes);
+int store_to_memory(uint32_t value, uint32_t address, int n_bytes);
+int load_from_memory(uint32_t *destination, uint32_t address, int n_bytes);
 
 //Emulator main function
 int32_t main(int32_t argc, char* argv[])
@@ -135,10 +135,15 @@ void sigint_handler() {
 }
 
 
-void store_to_memory(uint32_t value, uint32_t address, int n_bytes) {
+int store_to_memory(uint32_t value, uint32_t address, int n_bytes) {
 
     // Adress must be aligned
-    address &= ~(n_bytes-1);
+    // address &= ~(n_bytes-1);
+
+    if ( address % n_bytes != 0) {
+        puts("Cant store to unaligned address!");
+        return -1;
+    }
 
     if(address >= ROM_MIN && address <= ROM_MAX) {
         memcpy(rom + address - ROM_MIN, &value, n_bytes);
@@ -151,9 +156,15 @@ void store_to_memory(uint32_t value, uint32_t address, int n_bytes) {
 
 }
 
-void load_from_memory(uint32_t *destination, uint32_t address, int n_bytes) {
+int load_from_memory(uint32_t *destination, uint32_t address, int n_bytes) {
+    
     // Adress must be aligned
-    address &= ~(n_bytes-1);
+    // address &= ~(n_bytes-1);
+
+    if ( address % n_bytes != 0) {
+        puts("Cant load from unaligned address!");
+        return -1;
+    }
     
     if(address >= ROM_MIN && address <= ROM_MAX) {
         memcpy(destination, rom + address - ROM_MIN, n_bytes);

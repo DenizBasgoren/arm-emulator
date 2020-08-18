@@ -1,16 +1,11 @@
 
-#define i8 char
-#define i16 short
-#define i32 int
-#define f32 float
-
-f32 xd;
+extern float xd;
+extern float yd;
+extern float zd;
 
 void _start() {
-	float a = 0.1f;
-	float b = 0.2f;
-
-	xd = a*b;
+	zd = xd*yd;
+	
 	asm("bkpt 0");
 	
 	while (1);

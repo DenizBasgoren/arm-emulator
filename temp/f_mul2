@@ -1,0 +1,308 @@
+00000000 <initial_sp>:
+   0:   20010000        .word   0x20010000
+
+00000004 <reset_vector>:
+   4:   00000011        .word   0x00000011
+
+00000008 <xd>:
+   8:   44556677        .word   0x44556677
+
+0000000c <yd>:
+   c:   41aabbcc        .word   0x41aabbcc
+
+00000010 <_start>:
+  10:   b580            push    {r7, lr}
+  12:   af00            add     r7, sp, #0
+  14:   4b06            ldr     r3, [pc, #24]   ; (30 <_start+0x20>)
+  16:   681a            ldr     r2, [r3, #0]
+  18:   4b06            ldr     r3, [pc, #24]   ; (34 <_start+0x24>)
+  1a:   681b            ldr     r3, [r3, #0]
+  1c:   1c19            adds    r1, r3, #0
+  1e:   1c10            adds    r0, r2, #0
+  20:   f000 f80c       bl      3c <__aeabi_fmul>
+  24:   1c03            adds    r3, r0, #0
+  26:   1c1a            adds    r2, r3, #0
+  28:   4b03            ldr     r3, [pc, #12]   ; (38 <_start+0x28>)
+  2a:   601a            str     r2, [r3, #0]
+  2c:   be00            bkpt    0x0000
+  2e:   e7fe            b.n     2e <_start+0x1e>
+  30:   00000008        .word   0x00000008
+  34:   0000000c        .word   0x0000000c
+  38:   20000000        .word   0x20000000
+
+0000003c <__aeabi_fmul>:
+  3c:   b5f0            push    {r4, r5, r6, r7, lr}
+  3e:   0fc3            lsrs    r3, r0, #31
+  40:   b085            sub     sp, #20
+  42:   0245            lsls    r5, r0, #9
+  44:   0044            lsls    r4, r0, #1
+  46:   1c0f            adds    r7, r1, #0
+  48:   0a6d            lsrs    r5, r5, #9
+  4a:   0e24            lsrs    r4, r4, #24
+  4c:   9303            str     r3, [sp, #12]
+  4e:   9302            str     r3, [sp, #8]
+  50:   d00a            beq.n   68 <__aeabi_fmul+0x2c>
+  52:   2cff            cmp     r4, #255        ; 0xff
+  54:   d03c            beq.n   d0 <__aeabi_fmul+0x94>
+  56:   2080            movs    r0, #128        ; 0x80
+  58:   2300            movs    r3, #0
+  5a:   00ed            lsls    r5, r5, #3
+  5c:   04c0            lsls    r0, r0, #19
+  5e:   3c7f            subs    r4, #127        ; 0x7f
+  60:   4305            orrs    r5, r0
+  62:   9401            str     r4, [sp, #4]
+  64:   9300            str     r3, [sp, #0]
+  66:   e00e            b.n     86 <__aeabi_fmul+0x4a>
+  68:   2301            movs    r3, #1							/////////////////////////////
+  6a:   9501            str     r5, [sp, #4]
+  6c:   9300            str     r3, [sp, #0]
+  6e:   2d00            cmp     r5, #0
+  70:   d009            beq.n   86 <__aeabi_fmul+0x4a>
+  72:   0028            movs    r0, r5
+  74:   f000 f8de       bl      234 <__clzsi2>
+  78:   1f43            subs    r3, r0, #5
+  7a:   409d            lsls    r5, r3
+  7c:   2376            movs    r3, #118        ; 0x76
+  7e:   425b            negs    r3, r3
+  80:   1a1b            subs    r3, r3, r0
+  82:   9301            str     r3, [sp, #4]
+  84:   9400            str     r4, [sp, #0]
+  86:   027c            lsls    r4, r7, #9
+  88:   007e            lsls    r6, r7, #1
+  8a:   0a64            lsrs    r4, r4, #9
+  8c:   0e36            lsrs    r6, r6, #24
+  8e:   0fff            lsrs    r7, r7, #31
+  90:   2e00            cmp     r6, #0
+  92:   d024            beq.n   de <__aeabi_fmul+0xa2>
+  94:   2eff            cmp     r6, #255        ; 0xff
+  96:   d02e            beq.n   f6 <__aeabi_fmul+0xba>
+  98:   2380            movs    r3, #128        ; 0x80
+  9a:   0030            movs    r0, r6
+  9c:   00e4            lsls    r4, r4, #3
+  9e:   04db            lsls    r3, r3, #19
+  a0:   431c            orrs    r4, r3
+  a2:   387f            subs    r0, #127        ; 0x7f
+  a4:   2300            movs    r3, #0
+  a6:   9901            ldr     r1, [sp, #4]
+  a8:   9a03            ldr     r2, [sp, #12]
+  aa:   1846            adds    r6, r0, r1
+  ac:   9800            ldr     r0, [sp, #0]
+  ae:   407a            eors    r2, r7
+  b0:   0080            lsls    r0, r0, #2
+  b2:   4318            orrs    r0, r3
+  b4:   3801            subs    r0, #1						:/
+  b6:   1c71            adds    r1, r6, #1
+  b8:   280e            cmp     r0, #14
+  ba:   d838            bhi.n   12e <__aeabi_fmul+0xf2>
+  bc:   f000 f8b0       bl      220 <__gnu_thumb1_case_uqi>
+  c0:   21822323        .word   0x21822323
+  c4:   2182a221        .word   0x2182a221
+  c8:   7f8221a2        .word   0x7f8221a2
+  cc:   7f7f            .short  0x7f7f
+  ce:   71              .byte   0x71
+  cf:   00              .byte   0x00
+  d0:   2302            movs    r3, #2						.............
+  d2:   9401            str     r4, [sp, #4]
+  d4:   9300            str     r3, [sp, #0]
+  d6:   2d00            cmp     r5, #0
+  d8:   d0d5            beq.n   86 <__aeabi_fmul+0x4a>
+  da:   3301            adds    r3, #1
+  dc:   e7c2            b.n     64 <__aeabi_fmul+0x28>
+  de:   0020            movs    r0, r4								..........
+  e0:   2301            movs    r3, #1
+  e2:   2c00            cmp     r4, #0
+  e4:   d0df            beq.n   a6 <__aeabi_fmul+0x6a>
+  e6:   f000 f8a5       bl      234 <__clzsi2>
+  ea:   1f43            subs    r3, r0, #5
+  ec:   409c            lsls    r4, r3
+  ee:   2376            movs    r3, #118        ; 0x76
+  f0:   425b            negs    r3, r3
+  f2:   1a18            subs    r0, r3, r0
+  f4:   e7d6            b.n     a4 <__aeabi_fmul+0x68>
+  f6:   0030            movs    r0, r6								.............
+  f8:   2302            movs    r3, #2
+  fa:   2c00            cmp     r4, #0
+  fc:   d0d3            beq.n   a6 <__aeabi_fmul+0x6a>
+  fe:   3301            adds    r3, #1
+ 100:   e7d1            b.n     a6 <__aeabi_fmul+0x6a>
+ 102:   002c            movs    r4, r5								///////////////////////////// 21
+ 104:   9b00            ldr     r3, [sp, #0]
+ 106:   2b02            cmp     r3, #2								////////// 23
+ 108:   d049            beq.n   19e <__aeabi_fmul+0x162>
+ 10a:   2b03            cmp     r3, #3
+ 10c:   d100            bne.n   110 <__aeabi_fmul+0xd4>
+ 10e:   e07e            b.n     20e <__aeabi_fmul+0x1d2>
+ 110:   2500            movs    r5, #0								////////////////////////////
+ 112:   0028            movs    r0, r5
+ 114:   2b01            cmp     r3, #1
+ 116:   d12e            bne.n   176 <__aeabi_fmul+0x13a>
+ 118:   23ff            movs    r3, #255        ; 0xff
+ 11a:   05c0            lsls    r0, r0, #23
+ 11c:   05db            lsls    r3, r3, #23
+ 11e:   026d            lsls    r5, r5, #9
+ 120:   4018            ands    r0, r3
+ 122:   0a6d            lsrs    r5, r5, #9
+ 124:   4328            orrs    r0, r5
+ 126:   07d2            lsls    r2, r2, #31
+ 128:   4310            orrs    r0, r2
+ 12a:   b005            add     sp, #20
+ 12c:   bdf0            pop     {r4, r5, r6, r7, pc}
+ 12e:   0c20            lsrs    r0, r4, #16							..........
+ 130:   b2a4            uxth    r4, r4
+ 132:   0027            movs    r7, r4
+ 134:   0c2b            lsrs    r3, r5, #16
+ 136:   b2ad            uxth    r5, r5
+ 138:   436f            muls    r7, r5
+ 13a:   435c            muls    r4, r3
+ 13c:   4345            muls    r5, r0
+ 13e:   4343            muls    r3, r0
+ 140:   192d            adds    r5, r5, r4
+ 142:   469c            mov     ip, r3
+ 144:   0c3b            lsrs    r3, r7, #16
+ 146:   195b            adds    r3, r3, r5
+ 148:   429c            cmp     r4, r3
+ 14a:   d902            bls.n   152 <__aeabi_fmul+0x116>
+ 14c:   2080            movs    r0, #128        ; 0x80
+ 14e:   0240            lsls    r0, r0, #9
+ 150:   4484            add     ip, r0
+ 152:   041c            lsls    r4, r3, #16
+ 154:   b2bf            uxth    r7, r7
+ 156:   19e7            adds    r7, r4, r7
+ 158:   01bc            lsls    r4, r7, #6
+ 15a:   1e60            subs    r0, r4, #1
+ 15c:   4184            sbcs    r4, r0
+ 15e:   0c1b            lsrs    r3, r3, #16
+ 160:   0ebf            lsrs    r7, r7, #26
+ 162:   4463            add     r3, ip
+ 164:   433c            orrs    r4, r7
+ 166:   019b            lsls    r3, r3, #6
+ 168:   431c            orrs    r4, r3
+ 16a:   011b            lsls    r3, r3, #4
+ 16c:   d52c            bpl.n   1c8 <__aeabi_fmul+0x18c>
+ 16e:   2301            movs    r3, #1
+ 170:   0860            lsrs    r0, r4, #1
+ 172:   401c            ands    r4, r3
+ 174:   4304            orrs    r4, r0
+ 176:   0008            movs    r0, r1
+ 178:   307f            adds    r0, #127        ; 0x7f
+ 17a:   2800            cmp     r0, #0
+ 17c:   dd26            ble.n   1cc <__aeabi_fmul+0x190>
+ 17e:   0763            lsls    r3, r4, #29
+ 180:   d004            beq.n   18c <__aeabi_fmul+0x150>
+ 182:   230f            movs    r3, #15
+ 184:   4023            ands    r3, r4
+ 186:   2b04            cmp     r3, #4
+ 188:   d000            beq.n   18c <__aeabi_fmul+0x150>
+ 18a:   3404            adds    r4, #4
+ 18c:   0123            lsls    r3, r4, #4
+ 18e:   d503            bpl.n   198 <__aeabi_fmul+0x15c>
+ 190:   3180            adds    r1, #128        ; 0x80
+ 192:   0008            movs    r0, r1
+ 194:   4b21            ldr     r3, [pc, #132]  ; (21c <__aeabi_fmul+0x1e0>)
+ 196:   401c            ands    r4, r3
+ 198:   08e5            lsrs    r5, r4, #3
+ 19a:   28fe            cmp     r0, #254        ; 0xfe
+ 19c:   ddbc            ble.n   118 <__aeabi_fmul+0xdc>
+ 19e:   2500            movs    r5, #0
+ 1a0:   e00b            b.n     1ba <__aeabi_fmul+0x17e>
+ 1a2:   2380            movs    r3, #128        ; 0x80	////////////////////////////////////////////////////
+ 1a4:   03db            lsls    r3, r3, #15
+ 1a6:   421d            tst     r5, r3
+ 1a8:   d003            beq.n   1b2 <__aeabi_fmul+0x176>
+ 1aa:   421c            tst     r4, r3
+ 1ac:   d101            bne.n   1b2 <__aeabi_fmul+0x176>
+ 1ae:   0025            movs    r5, r4
+ 1b0:   9702            str     r7, [sp, #8]
+ 1b2:   2080            movs    r0, #128        ; 0x80
+ 1b4:   9a02            ldr     r2, [sp, #8]
+ 1b6:   03c0            lsls    r0, r0, #15
+ 1b8:   4305            orrs    r5, r0
+ 1ba:   20ff            movs    r0, #255        ; 0xff
+ 1bc:   e7ac            b.n     118 <__aeabi_fmul+0xdc>
+ 1be:   002c            movs    r4, r5								///////////////////////////////// 7f
+ 1c0:   9a03            ldr     r2, [sp, #12]
+ 1c2:   e79f            b.n     104 <__aeabi_fmul+0xc8>
+ 1c4:   003a            movs    r2, r7							////////////////////////////////// 82
+ 1c6:   e79e            b.n     106 <__aeabi_fmul+0xca>
+ 1c8:   0031            movs    r1, r6							///////////////////////////
+ 1ca:   e7d4            b.n     176 <__aeabi_fmul+0x13a>
+ 1cc:   2301            movs    r3, #1								//////////////////////////
+ 1ce:   2500            movs    r5, #0
+ 1d0:   1a1b            subs    r3, r3, r0
+ 1d2:   0028            movs    r0, r5
+ 1d4:   2b1b            cmp     r3, #27
+ 1d6:   dc9f            bgt.n   118 <__aeabi_fmul+0xdc>
+ 1d8:   319e            adds    r1, #158        ; 0x9e
+ 1da:   0025            movs    r5, r4
+ 1dc:   408c            lsls    r4, r1
+ 1de:   40dd            lsrs    r5, r3
+ 1e0:   1e63            subs    r3, r4, #1
+ 1e2:   419c            sbcs    r4, r3
+ 1e4:   4325            orrs    r5, r4
+ 1e6:   076b            lsls    r3, r5, #29
+ 1e8:   d004            beq.n   1f4 <__aeabi_fmul+0x1b8>
+ 1ea:   230f            movs    r3, #15
+ 1ec:   402b            ands    r3, r5
+ 1ee:   2b04            cmp     r3, #4
+ 1f0:   d000            beq.n   1f4 <__aeabi_fmul+0x1b8>
+ 1f2:   3504            adds    r5, #4
+ 1f4:   2380            movs    r3, #128        ; 0x80
+ 1f6:   0028            movs    r0, r5
+ 1f8:   04db            lsls    r3, r3, #19
+ 1fa:   4018            ands    r0, r3
+ 1fc:   421d            tst     r5, r3
+ 1fe:   d109            bne.n   214 <__aeabi_fmul+0x1d8>
+ 200:   08ed            lsrs    r5, r5, #3
+ 202:   e789            b.n     118 <__aeabi_fmul+0xdc>
+ 204:   2580            movs    r5, #128        ; 0x80					///////////////////////////// a2
+ 206:   2300            movs    r3, #0
+ 208:   03ed            lsls    r5, r5, #15
+ 20a:   9302            str     r3, [sp, #8]
+ 20c:   e7d1            b.n     1b2 <__aeabi_fmul+0x176>
+ 20e:   0025            movs    r5, r4									//////////////////////
+ 210:   9202            str     r2, [sp, #8]
+ 212:   e7ce            b.n     1b2 <__aeabi_fmul+0x176>
+ 214:   2500            movs    r5, #0										//////////////////////
+ 216:   2001            movs    r0, #1
+ 218:   e77e            b.n     118 <__aeabi_fmul+0xdc>
+ 21a:   46c0            nop                     ; (mov r8, r8)				//////////////////////////
+ 21c:   f7ffffff        .word   0xf7ffffff
+
+00000220 <__gnu_thumb1_case_uqi>:
+ 220:   b402            push    {r1}
+ 222:   4671            mov     r1, lr
+ 224:   0849            lsrs    r1, r1, #1
+ 226:   0049            lsls    r1, r1, #1
+ 228:   5c09            ldrb    r1, [r1, r0]
+ 22a:   0049            lsls    r1, r1, #1
+ 22c:   448e            add     lr, r1
+ 22e:   bc02            pop     {r1}
+ 230:   4770            bx      lr
+ 232:   46c0            nop                     ; (mov r8, r8)
+
+00000234 <__clzsi2>:
+ 234:   211c            movs    r1, #28
+ 236:   2301            movs    r3, #1
+ 238:   041b            lsls    r3, r3, #16
+ 23a:   4298            cmp     r0, r3
+ 23c:   d301            bcc.n   242 <__clzsi2+0xe>
+ 23e:   0c00            lsrs    r0, r0, #16
+ 240:   3910            subs    r1, #16
+ 242:   0a1b            lsrs    r3, r3, #8
+ 244:   4298            cmp     r0, r3
+ 246:   d301            bcc.n   24c <__clzsi2+0x18>
+ 248:   0a00            lsrs    r0, r0, #8
+ 24a:   3908            subs    r1, #8
+ 24c:   091b            lsrs    r3, r3, #4
+ 24e:   4298            cmp     r0, r3
+ 250:   d301            bcc.n   256 <__clzsi2+0x22>
+ 252:   0900            lsrs    r0, r0, #4
+ 254:   3904            subs    r1, #4
+ 256:   a202            add     r2, pc, #8      ; (adr r2, 260 <__clzsi2+0x2c>)
+ 258:   5c10            ldrb    r0, [r2, r0]
+ 25a:   1840            adds    r0, r0, r1
+ 25c:   4770            bx      lr
+ 25e:   46c0            nop                     ; (mov r8, r8)
+ 260:   02020304        .word   0x02020304
+ 264:   01010101        .word   0x01010101
+        ...
