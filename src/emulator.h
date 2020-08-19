@@ -68,14 +68,14 @@ extern uint8_t gpu[0x40];
 
 struct range {
     char exists;
-    char* min;
-    char* max;
-    int len;
+    uint32_t min;
+    uint32_t max;
+    uint32_t len;
     char* real_min;
     char* real;
     char* real_max;
 };
 
-struct range rangeOf(int from);
+struct range rangeOf(uint32_t from);
 
 extern int is_debug_mode;

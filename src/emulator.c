@@ -24,8 +24,7 @@ int is_debug_mode;
 
 int32_t execute_next( int is_debug_mode );
 void update_nz_flags(int32_t reg);
-void update_vc_flags_in_addition(int32_t o1, int32_t o2, int32_t res);
-void update_vc_flags_in_subtraction(int32_t o1, int32_t o2, int32_t res);
+void update_vr_flags(char carry, char overflow);
 void sigint_handler();
 int store_to_memory(uint32_t value, uint32_t address, int n_bytes);
 int load_from_memory(uint32_t *destination, uint32_t address, int n_bytes);
@@ -110,23 +109,53 @@ void update_nz_flags(int32_t reg) {
     else RESET_BIT(FLG, FLG_N);
 }
 
-void update_vc_flags_in_addition(int32_t o1, int32_t o2, int32_t res) {
-    if (o1>0 && o2>0 && res<0) SET_BIT(FLG, FLG_V);
-    else if (o1<0 && o2<0 && res>0) SET_BIT(FLG, FLG_V);
-    else RESET_BIT(FLG, FLG_V);
-
-    if ( 0xFFFFFFFF - o1 < o2 ) SET_BIT(FLG, FLG_C);
+void update_vc_flags(char c, char v) {
+    if (c) SET_BIT(FLG, FLG_C);
     else RESET_BIT(FLG, FLG_C);
-}
-
-void update_vc_flags_in_subtraction(int32_t o1, int32_t o2, int32_t res) {
-    if (o1<0 && o2>0 && res>0) SET_BIT(FLG, FLG_V);
-    else if (o1>0 && o2<0 && res<0) SET_BIT(FLG, FLG_V);
+    if (v) SET_BIT(FLG, FLG_V);
     else RESET_BIT(FLG, FLG_V);
-
-    if ( o1 - o2 < 0) RESET_BIT(FLG, FLG_C);
-    else SET_BIT(FLG, FLG_C);
 }
+
+
+struct additionResult {
+    uint32_t result;
+    char carry_out;
+    char overflow;
+};
+
+// manual pg 34, generic m0 guide pg 60
+struct additionResult addWithCarry(uint32_t x, uint32_t y, char carry_in, char isAddition) {
+    char carry_out, overflow;
+    uint32_t result;
+
+    if (isAddition) {
+        result = x+y;
+
+        carry_out = (uint64_t) x + (uint64_t) y > (uint64_t) 0xFFFFFFFF;
+
+        int32_t xs = x;
+        int32_t ys = y;
+
+        overflow = xs >= 0 && ys >= 0 && x+y < 0 ||
+                    xs < 0 && ys < 0 && x+y >= 0;
+    }
+    else {
+        result = x-y;
+
+        carry_out = x >= y;
+
+        int32_t xs = x;
+        int32_t ys = y;
+
+        overflow = xs < 0 && ys >= 0 && x-y >= 0 ||
+                    xs >= 0 && ys < 0 && x-y < 0;
+    }
+    
+    struct additionResult r = {result, carry_out, overflow};
+
+    return r;
+}
+
 
 // ctrl+c handler
 void sigint_handler() {
@@ -176,43 +205,31 @@ int load_from_memory(uint32_t *destination, uint32_t address, int n_bytes) {
         peripheral_read(address, destination, n_bytes);
 }
 
-struct range rangeOf(int from) {
+struct range rangeOf(uint32_t from) {
     
     struct range new;
 
-    if(from >= ROM_MIN && from <= ROM_MAX) {
-        new.exists = 1;
-        new.min = (char*) ROM_MIN;
-        new.max = (char*) ROM_MAX;
-        new.len = ROM_LEN;
-        new.real = from - ROM_MIN + rom;
-        new.real_min = rom;
-        new.real_max = rom + new.len - 1;
-    }
-    else if(from >= RAM_MIN && from <= RAM_MAX) { 
-        new.exists = 1;
-        new.min = (char*) RAM_MIN;
-        new.max = (char*) RAM_MAX;
-        new.len = RAM_LEN;
-        new.real = from - RAM_MIN + ram;
-        new.real_min = ram;
-        new.real_max = ram + new.len - 1;
-    }
-    else if(from >= GPU_MIN && from <= GPU_MAX) {
-        new.exists = 1;
-        new.min = (char*) GPU_MIN;
-        new.max = (char*) GPU_MAX;
-        new.len = GPU_LEN;
-        new.real = from - GPU_MIN + gpu;
-        new.real_min = gpu;
-        new.real_max = gpu + new.len - 1;
-    }
-    else {
-        new.exists = 0;
+    uint32_t mins[] = {ROM_MIN, RAM_MIN, GPU_MIN};
+    uint32_t maxs[] = {ROM_MAX, RAM_MAX, GPU_MAX};
+    int lens[] = {ROM_LEN, RAM_LEN, GPU_LEN};
+    char* adrs[] = {rom, ram, gpu};
+    int regions = 3;
+
+    new.exists = 0;
+
+    for (int i = 0; i<regions; i++) {
+        if(from >= mins[i] && from <= maxs[i]) {
+            new.exists = 1;
+            new.min = mins[i];
+            new.max = maxs[i];
+            new.len = lens[i];
+            new.real = from -  mins[i] + adrs[i];
+            new.real_min = adrs[i];
+            new.real_max = adrs[i] + lens[i] - 1;
+        }
     }
 
     return new;
-        
 }
 
 
@@ -308,11 +325,11 @@ int32_t execute_next( int is_debug_mode )
 
         uint32_t ra = cpu.reg[rn];
         uint32_t rb = cpu.reg[rm];
-        uint32_t rc = ra + rb;
-        cpu.reg[rd] = rc;
 
-        update_nz_flags(rc);
-        update_vc_flags_in_addition(ra,rb,rc);
+        struct additionResult r = addWithCarry(ra, rb, 0, 1);
+        update_nz_flags(r.result);
+        update_vc_flags(r.carry_out, r.overflow);
+        cpu.reg[rd] = r.result;
 
         PC += 2;
         return 0;
@@ -326,11 +343,11 @@ int32_t execute_next( int is_debug_mode )
 
         uint32_t ra = cpu.reg[rn];
         uint32_t rb = cpu.reg[rm];
-        uint32_t rc = ra - rb;
-        cpu.reg[rd] = rc;
-
-        update_nz_flags(rc);
-        update_vc_flags_in_subtraction(ra,rb,rc);
+        
+        struct additionResult r = addWithCarry(ra, rb, 0, 0);
+        update_nz_flags(r.result);
+        update_vc_flags(r.carry_out, r.overflow);
+        cpu.reg[rd] = r.result;
 
         PC += 2;
         return 0;
@@ -343,11 +360,11 @@ int32_t execute_next( int is_debug_mode )
         uint8_t rd = GET_BITS(inst, 2, 3);
 
         uint32_t ra = cpu.reg[rn];
-        uint32_t rc = ra + immed;
-        cpu.reg[rd] = rc;
-
-        update_nz_flags(rc);
-        update_vc_flags_in_addition(ra,immed, rc);
+        
+        struct additionResult r = addWithCarry(ra, immed, 0, 1);
+        update_nz_flags(r.result);
+        update_vc_flags(r.carry_out, r.overflow);
+        cpu.reg[rd] = r.result;
 
         PC += 2;
         return 0;
@@ -360,11 +377,11 @@ int32_t execute_next( int is_debug_mode )
         uint8_t rd = GET_BITS(inst, 2, 3);
 
         uint32_t ra = cpu.reg[rn];
-        uint32_t rc = ra - immed;
-        cpu.reg[rd] = rc;
-
-        update_nz_flags(rc);
-        update_vc_flags_in_subtraction(ra,immed,rc);
+        
+        struct additionResult r = addWithCarry(ra, immed, 0, 0);
+        update_nz_flags(r.result);
+        update_vc_flags(r.carry_out, r.overflow);
+        cpu.reg[rd] = r.result;
 
         PC += 2;
         return 0;
@@ -388,10 +405,10 @@ int32_t execute_next( int is_debug_mode )
         uint8_t immed = GET_BITS(inst, 7, 8);
 
         uint32_t ra = cpu.reg[rn];
-        uint32_t dif = ra - immed;
-
-        update_nz_flags(dif);
-        update_vc_flags_in_subtraction(ra,immed,dif);
+        
+        struct additionResult r = addWithCarry(ra, immed, 0, 0);
+        update_nz_flags(r.result);
+        update_vc_flags(r.carry_out, r.overflow);
 
         PC += 2;
         return 0;
@@ -403,11 +420,11 @@ int32_t execute_next( int is_debug_mode )
         uint8_t immed = GET_BITS(inst, 7, 8);
 
         uint32_t ra = cpu.reg[rd];
-        uint32_t rc = ra + immed;
 
-        cpu.reg[rd] = rc;
-        update_nz_flags(rc);
-        update_vc_flags_in_addition(ra,immed,rc);
+        struct additionResult r = addWithCarry(ra, immed, 0, 1);
+        update_nz_flags(r.result);
+        update_vc_flags(r.carry_out, r.overflow);
+        cpu.reg[rd] = r.result;
 
         PC += 2;
         return 0;
@@ -419,11 +436,11 @@ int32_t execute_next( int is_debug_mode )
         uint8_t immed = GET_BITS(inst, 7, 8);
 
         uint32_t ra = cpu.reg[rd];
-        uint32_t rc = ra - immed;
-
-        cpu.reg[rd] = rc;
-        update_nz_flags(rc);
-        update_vc_flags_in_subtraction(ra,immed,rc); 
+        
+        struct additionResult r = addWithCarry(ra, immed, 0, 0);
+        update_nz_flags(r.result);
+        update_vc_flags(r.carry_out, r.overflow);
+        cpu.reg[rd] = r.result;
 
         PC += 2;
         return 0;
@@ -538,12 +555,11 @@ int32_t execute_next( int is_debug_mode )
         uint32_t ra = cpu.reg[rd];
         uint32_t rb = cpu.reg[rm];
         int carry = GET_BITS(FLG, FLG_C, 1);
-        uint32_t rc = ra + rb + carry;
-
-        cpu.reg[rd] = rc;
         
-        update_nz_flags(rc);
-        update_vc_flags_in_addition(ra, rb+carry, rc);
+        struct additionResult r = addWithCarry(ra, rb, carry, 1);
+        update_nz_flags(r.result);
+        update_vc_flags(r.carry_out, r.overflow);
+        cpu.reg[rd] = r.result;
 
         PC += 2;
         return 0;
@@ -557,12 +573,11 @@ int32_t execute_next( int is_debug_mode )
         uint32_t ra = cpu.reg[rd];
         uint32_t rb = cpu.reg[rm];
         int carry = GET_BITS(FLG, FLG_C, 1);
-        uint32_t rc = ra - rb - carry;
-
-        cpu.reg[rd] = rc;
         
-        update_nz_flags(rc);
-        update_vc_flags_in_subtraction(ra, rb+carry, rc);
+        struct additionResult r = addWithCarry(ra, rb, carry, 0);
+        update_nz_flags(r.result);
+        update_vc_flags(r.carry_out, r.overflow);
+        cpu.reg[rd] = r.result;
 
         PC += 2;
         return 0;
@@ -626,10 +641,10 @@ int32_t execute_next( int is_debug_mode )
         uint8_t rm = GET_BITS(inst, 5, 3);
         uint32_t ra = cpu.reg[rd];
         uint32_t rb = cpu.reg[rm];
-        uint32_t rc = ra - rb;
         
-        update_nz_flags(rc);
-        update_vc_flags_in_subtraction(ra,rb,rc);
+        struct additionResult r = addWithCarry(ra, rb, 0, 0);
+        update_nz_flags(r.result);
+        update_vc_flags(r.carry_out, r.overflow);
 
         PC += 2;
         return 0;
@@ -642,10 +657,10 @@ int32_t execute_next( int is_debug_mode )
         uint8_t rm = GET_BITS(inst, 5, 3);
         uint32_t ra = cpu.reg[rd];
         uint32_t rb = cpu.reg[rm];
-        uint32_t rc = ra + rb;
-        
-        update_nz_flags(rc);
-        update_vc_flags_in_addition(ra,rb,rc);
+       
+        struct additionResult r = addWithCarry(ra, rb, 0, 1);
+        update_nz_flags(r.result);
+        update_vc_flags(r.carry_out, r.overflow);
 
         PC += 2;
         return 0;
@@ -835,10 +850,10 @@ int32_t execute_next( int is_debug_mode )
         uint32_t ra = cpu.reg[rd];
         uint32_t rb = cpu.reg[rm+8];
         
-        uint32_t dif = ra - rb;
-
-        update_nz_flags(dif);
-        update_vc_flags_in_subtraction(ra,rb,dif);
+        
+        struct additionResult r = addWithCarry(ra, rb, 0, 0);
+        update_nz_flags(r.result);
+        update_vc_flags(r.carry_out, r.overflow);
 
         PC += 2;
         return 0;
@@ -852,10 +867,10 @@ int32_t execute_next( int is_debug_mode )
         uint32_t ra = cpu.reg[rd+8];
         uint32_t rb = cpu.reg[rm];
         
-        uint32_t dif = ra - rb;
-
-        update_nz_flags(dif);
-        update_vc_flags_in_subtraction(ra,rb,dif);
+        
+        struct additionResult r = addWithCarry(ra, rb, 0, 0);
+        update_nz_flags(r.result);
+        update_vc_flags(r.carry_out, r.overflow);
 
         PC += 2;
         return 0;
@@ -869,10 +884,10 @@ int32_t execute_next( int is_debug_mode )
         uint32_t ra = cpu.reg[rd+8];
         uint32_t rb = cpu.reg[rm+8];
         
-        uint32_t dif = ra - rb;
-
-        update_nz_flags(dif);
-        update_vc_flags_in_subtraction(ra,rb,dif);
+        
+        struct additionResult r = addWithCarry(ra, rb, 0, 0);
+        update_nz_flags(r.result);
+        update_vc_flags(r.carry_out, r.overflow);
 
         PC += 2;
         return 0;

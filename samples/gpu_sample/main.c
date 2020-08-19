@@ -11,12 +11,12 @@
 #define i16 short
 #define i32 int
 
-const char* data = "~!!~!!~!!~~!~~!~~!~~!~~!\
-~!!~!!~!!~~!~~!~~!~~!~~!\
-~!!~!!~!!~~!~~!~~!~~!~~!\
-!!~!!~!!~!~!!~!!~!!~!!~!\
-!!~!!~!!~!~!!~!!~!!~!!~!\
-!!~!!~!!~!~!!~!!~!!~!!~!";
+const char* data = "~!!~!!~!!~~!~~!~~!~~!~~!"
+"~!!~!!~!!~~!~~!~~!~~!~~!"
+"~!!~!!~!!~~!~~!~~!~~!~~!"
+"!!~!!~!!~!~!!~!!~!!~!!~!"
+"!!~!!~!!~!~!!~!!~!!~!!~!"
+"!!~!!~!!~!~!!~!!~!!~!!~!";
 
 i8 slot = 0;
 
@@ -28,21 +28,11 @@ void setColor(i32 color)
 
 void setSrc(i16 x, i16 y, i16 w, i16 h)
 {
-    // #define testX(n) *(i16*)(0x20010000) = n // sets 1 byte only!
-    // asm("bkpt 0");
-    // testX(x);
-    // asm("bkpt 0");
-
     i16* pos = (void*)SRC;
-
     pos[0] = x;
-
     pos[1] = y;
-
     pos[2] = w;
-
     pos[3] = h;
-
 }
 
 void setTarget(i16 x, i16 y, i16 w, i16 h)
@@ -68,14 +58,9 @@ void loadTexture(const char* data, int w, int h)
     gpuUpdate();
 }
 
-void testFn(float a) {
-    asm("bkpt 3");
-}
 
 void _start()
 {
-    // double a = 2.3f + 3.7f; // 6
-    //setSrc
     gpuSlot(slot);
     loadTexture(data, 8, 6);
 
@@ -83,17 +68,14 @@ void _start()
     setTarget(0, 0, 50, 600);
 
     setColor(0);
-    //float f = 30 / 100.0f;
-    //testFn(f);
     i16 pos_x = 0;
     while(1)
     {
         gpuClear(0);
-        //asm("bkpt 0");
-        setSrc(pos_x/100, 0, 1, 6);
+        setSrc(pos_x/100.0f, 0, 1, 6);
         setTarget(pos_x, 0, 50, 600);
         gpuDraw(3);
-        for(int wait = 0; wait < 0x200000; wait++);
-        pos_x = (pos_x+30)%800;
+        for(int wait = 0; wait < 0x5000; wait++);
+        pos_x = (pos_x+1)%800;
     }
 }
