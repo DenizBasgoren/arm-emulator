@@ -8,11 +8,11 @@ struct cpu_t {
 extern struct cpu_t cpu;
 
 
-#define ROM_MAX 0x1FFFFFFF
+#define ROM_MAX 0x001FFFFF
 #define ROM_MIN 0x00000000
 #define ROM_LEN 0x200000
 
-#define RAM_MAX 0x3FFFFFFF
+#define RAM_MAX 0x200FFFFF
 #define RAM_MIN 0x20000000
 #define RAM_LEN 0x100000
 
@@ -59,6 +59,7 @@ extern struct cpu_t cpu;
 #define GREEN_TERM "\x1b[32m"
 #define WHITE_TERM "\x1b[97m"
 #define GRAY_TERM "\x1b[37m"
+#define BLUE_TERM "\x1b[34m"
 
 
 // memory

@@ -108,9 +108,18 @@ void debug_disassemble() {
 
 void debug_printMemoryBetween(uint32_t from, uint32_t to) {
 
-    int temp = 0;
+    if (to % 4 == 0) to--;
 
-    for (; from <= to; from++, temp++) {
+    if (from % 4 != 0 || to % 4 != 3) {
+        puts("Not word aligned");
+        return;
+    }
+
+    printf(BLUE_TERM);
+    printf("Address  Hex         Ascii          Signed    Unsigned  Float");
+    printf(WHITE_TERM);
+
+    for (; from <= to; from += 4) {
 
         struct range new = rangeOf(from);
         if (!new.exists) {
@@ -118,26 +127,45 @@ void debug_printMemoryBetween(uint32_t from, uint32_t to) {
             return;
         }
 
-        uint8_t val = *new.real;
+        union view {
+            uint32_t ui;
+            int32_t si;
+            float f;
+        } v;
 
-        if ( from % 8 == 0) {
-            temp = 0;
-        }
+        unsigned char* c = new.real;
+        v.ui = * (uint32_t*) new.real;
 
-        if ( temp % 8 == 0) {
+        if ( from % 4 == 0) {
             printf(GREEN_TERM);
-            printf("\n%08x\t", from);
+            printf("\n%08x", from);
             printf(WHITE_TERM);
         }
         
-        printf("%02x", val);
-        printf(GRAY_TERM);
-        if (val > 31 && val < 177)
-        printf("'%01c'  ", val );
-        else printf("     ");
+        // raw hex
+        printf(" %02x %02x %02x %02x ", c[0], c[1], c[2], c[3]);
+
+        // char
+        printf(GREEN_TERM);
+        for (int i = 0; i<4; i++) {
+            if (c[i] > 31 && c[i] < 127)
+            printf("%01c", c[i] );
+            else printf(" ");  
+        }
         printf(WHITE_TERM);
 
+        // signed
+        printf("\t%10d", v.si);
+
+        // unsigned
+        printf(" %10uu", v.ui);
+
+        // float
+        printf(" %.3ff", v.f);
+
     }
+
+    puts("");
 }
 
 // CHAR = 4 BYTE VARIANT
@@ -150,7 +178,8 @@ void debug_printMemoryUntilNull(uint32_t from) {
         return;
     }
 
-    while (1) {
+    // max 1000 chars
+    for (int i = 0; i<1000; i++) {
         if (new.real > new.real_max) {
             puts("\nBuffer overflow\n");
             return;

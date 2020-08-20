@@ -1433,6 +1433,7 @@ int32_t execute_next( int is_debug_mode )
         // scanf num
         else if (code == 6) {
             int input;
+            printf(">");
             scanf("%d", &input);
             store_to_memory(input, R0, 4);
         }
@@ -1440,8 +1441,26 @@ int32_t execute_next( int is_debug_mode )
         // scanf string
         else if (code == 7) {
             char input[100];
+            printf(">");
             scanf("%s", input);
             debug_storeString(input, R0);
+        }
+
+        // scanf float
+        else if (code == 8) {
+            union view {
+                uint32_t ui;
+                float f;
+            } v;
+
+            printf(">");
+            scanf("%f", &v.f);
+            store_to_memory(v.ui, R0, 4);
+        }
+
+        // print stack
+        else if (code == 9) {
+            debug_printMemoryBetween(SP, RAM_MAX);
         }
 
         else {
