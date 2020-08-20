@@ -136,8 +136,8 @@ struct additionResult addWithCarry(uint32_t x, uint32_t y, char carry_in, char i
         int32_t xs = x;
         int32_t ys = y;
 
-        overflow = xs >= 0 && ys >= 0 && x+y < 0 ||
-                    xs < 0 && ys < 0 && x+y >= 0;
+        overflow = xs >= 0 && ys >= 0 && xs+ys < 0 ||
+                    xs < 0 && ys < 0 && xs+ys >= 0;
     }
     else {
         result = x-y;
@@ -147,8 +147,8 @@ struct additionResult addWithCarry(uint32_t x, uint32_t y, char carry_in, char i
         int32_t xs = x;
         int32_t ys = y;
 
-        overflow = xs < 0 && ys >= 0 && x-y >= 0 ||
-                    xs >= 0 && ys < 0 && x-y < 0;
+        overflow = xs < 0 && ys >= 0 && xs-ys >= 0 ||
+                    xs >= 0 && ys < 0 && xs-ys < 0;
     }
     
     struct additionResult r = {result, carry_out, overflow};

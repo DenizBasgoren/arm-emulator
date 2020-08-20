@@ -1,1 +1,5 @@
 temp/*
+dist-linux/armapp.elf
+dist-linux/emulator
+dist-linux/ram
+dist-linux/rom

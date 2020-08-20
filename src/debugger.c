@@ -108,8 +108,6 @@ void debug_disassemble() {
 
 void debug_printMemoryBetween(uint32_t from, uint32_t to) {
 
-    printf("Memory %x - %x (inclusive): (%d bytes)\n\n", from, to, to-from+1);
-
     int temp = 0;
 
     for (; from <= to; from++, temp++) {
