@@ -11,6 +11,8 @@
 #include "emulator.h"
 #include "emulib.h"
 #include "debugger.h"
+#include "gpu.h"
+#include "nvic.h"
 
 
 // registers
@@ -19,7 +21,6 @@ struct cpu_t cpu;
 // memory
 uint8_t rom[ROM_LEN];
 uint8_t ram[RAM_LEN];
-uint8_t gpu[GPU_LEN];
 int is_debug_mode;
 
 int32_t execute_next( int is_debug_mode );
@@ -163,12 +164,12 @@ void sigint_handler() {
     exit(0);
 }
 
+//////////////////////////
+// Every time a new peripheral is added, modify these 3 functions:
 
 int store_to_memory(uint32_t value, uint32_t address, int n_bytes) {
 
     // Adress must be aligned
-    // address &= ~(n_bytes-1);
-
     if ( address % n_bytes != 0) {
         puts("Cant store to unaligned address!");
         return -1;
@@ -180,16 +181,14 @@ int store_to_memory(uint32_t value, uint32_t address, int n_bytes) {
     else if(address >= RAM_MIN && address <= RAM_MAX) {
         memcpy(ram + address - RAM_MIN, &value, n_bytes);
     }
-    else if(address >= PER_MIN && address <= PER_MAX)
-        peripheral_write(address, value, n_bytes);
+    else if(address >= GPU_MIN && address <= GPU_MAX)
+        gpu_write(address, value, n_bytes);
 
 }
 
 int load_from_memory(uint32_t *destination, uint32_t address, int n_bytes) {
     
     // Adress must be aligned
-    // address &= ~(n_bytes-1);
-
     if ( address % n_bytes != 0) {
         puts("Cant load from unaligned address!");
         return -1;
@@ -201,18 +200,18 @@ int load_from_memory(uint32_t *destination, uint32_t address, int n_bytes) {
     else if(address >= RAM_MIN && address <= RAM_MAX) { 
         memcpy(destination, ram + address - RAM_MIN, n_bytes);
     }
-    else if(address >= PER_MIN && address <= PER_MAX)
-        peripheral_read(address, destination, n_bytes);
+    else if(address >= GPU_MIN && address <= GPU_MAX)
+        gpu_read(address, destination, n_bytes);
 }
 
 struct range rangeOf(uint32_t from) {
     
     struct range new;
 
-    uint32_t mins[] = {ROM_MIN, RAM_MIN, GPU_MIN};
-    uint32_t maxs[] = {ROM_MAX, RAM_MAX, GPU_MAX};
-    int lens[] = {ROM_LEN, RAM_LEN, GPU_LEN};
-    char* adrs[] = {rom, ram, gpu};
+    uint32_t mins[] = {ROM_MIN, RAM_MIN, GPU_MIN, NVIC_MIN};
+    uint32_t maxs[] = {ROM_MAX, RAM_MAX, GPU_MAX, NVIC_MAX};
+    int lens[] = {ROM_LEN, RAM_LEN, GPU_LEN, NVIC_LEN};
+    char* adrs[] = {rom, ram, gpu, nvic};
     int regions = 3;
 
     new.exists = 0;
@@ -232,6 +231,9 @@ struct range rangeOf(uint32_t from) {
     return new;
 }
 
+// End of the 3 memory functions
+/////////////////////////////////
+
 
 //Fetches an instruction from ROM, decodes and executes it
 int32_t execute_next( int is_debug_mode )
@@ -239,7 +241,7 @@ int32_t execute_next( int is_debug_mode )
     uint16_t inst = rom[PC] | rom[PC + 1] << 8; // !!!
 
     if (is_debug_mode) {
-        debug_dialog();
+        debug_dialog(1); // clear screen
     }
 
 
@@ -1401,7 +1403,7 @@ int32_t execute_next( int is_debug_mode )
 
         // activate interactive debug dialog
         if (code == 0) {
-            if ( !is_debug_mode ) debug_dialog();
+            if ( !is_debug_mode ) debug_dialog(R0);
         }
 
         // print registers

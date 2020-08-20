@@ -11,7 +11,7 @@ let arr = `
 */
 
 // EDIT HERE
-let dir = 'samples/debug_sample'
+let dir = 'samples/gol'
 let arr = `
 
 vectable.s

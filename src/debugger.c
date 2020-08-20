@@ -16,11 +16,11 @@ int debug_inst_elapsed = 0;
 // this gets called on every "bkpt 0" sequence in asm code.
 // it lets you see current register values, and memory contents.
 // for a per-instruction debugging mode, add -debug flag to args
-void debug_dialog () {    
+void debug_dialog (char clearScreen) {    
     uint16_t next_inst = rom[PC] | rom[PC+1] << 8; // !!!
     
 
-    puts("\x1b[2J\x1b[1;1H");
+    if (clearScreen) puts("\x1b[2J\x1b[1;1H");
     puts("Debug instruction!");
 
     if(GET_BITS(next_inst, 15, 5) == 0b11110) {

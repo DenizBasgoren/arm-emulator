@@ -1,3 +1,7 @@
+
+#ifndef _EMULATOR_H_
+#define _EMULATOR_H_
+
 #include <stdint.h>
 
 struct cpu_t {
@@ -16,12 +20,13 @@ extern struct cpu_t cpu;
 #define RAM_MIN 0x20000000
 #define RAM_LEN 0x100000
 
-#define PER_MAX 0x5FFFFFFF
-#define PER_MIN 0x40000000
-
 #define GPU_MAX 0x4000003F
 #define GPU_MIN 0x40000000
 #define GPU_LEN 0x40
+
+#define NVIC_MAX 0xE00000FF
+#define NVIC_MIN 0xE0000000
+#define NVIC_LEN 0x100
 
 // start (in order of documentation), offset ( number of bits from start to direction of 0)
 // GET_BITS( 010110, 3, 4 ) == 0110
@@ -65,7 +70,6 @@ extern struct cpu_t cpu;
 // memory
 extern uint8_t rom[ROM_LEN];
 extern uint8_t ram[RAM_LEN];
-extern uint8_t gpu[0x40];
 
 struct range {
     char exists;
@@ -80,3 +84,6 @@ struct range {
 struct range rangeOf(uint32_t from);
 
 extern int is_debug_mode;
+
+
+#endif
