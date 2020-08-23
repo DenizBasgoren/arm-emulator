@@ -12,9 +12,9 @@ struct cpu_t {
 extern struct cpu_t cpu;
 
 
-#define ROM_MAX 0x001FFFFF
+#define ROM_MAX 0x000FFFFF
 #define ROM_MIN 0x00000000
-#define ROM_LEN 0x200000
+#define ROM_LEN 0x100000
 
 #define RAM_MAX 0x200FFFFF
 #define RAM_MIN 0x20000000
@@ -24,9 +24,9 @@ extern struct cpu_t cpu;
 #define GPU_MIN 0x40000000
 #define GPU_LEN 0x40
 
-#define NVIC_MAX 0xE00000FF
+#define NVIC_MAX 0xE0000103
 #define NVIC_MIN 0xE0000000
-#define NVIC_LEN 0x100
+#define NVIC_LEN 0x104
 
 // start (in order of documentation), offset ( number of bits from start to direction of 0)
 // GET_BITS( 010110, 3, 4 ) == 0110
@@ -82,6 +82,10 @@ struct range {
 };
 
 struct range rangeOf(uint32_t from);
+
+int store_to_memory(uint32_t value, uint32_t address, int n_bytes);
+
+int load_from_memory(uint32_t *destination, uint32_t address, int n_bytes);
 
 extern int is_debug_mode;
 

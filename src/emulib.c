@@ -6,6 +6,7 @@
 #include "emulator.h"
 #include "emulib.h"
 #include "gpu.h"
+#include "nvic.h"
 
 SDL_Window *window;
 SDL_Renderer *renderer;
@@ -76,6 +77,7 @@ int32_t system_init()
 
 	// peripherals
 	gpu_init();
+	nvic_init();
 
 	return 0;
 }
@@ -84,6 +86,7 @@ void system_deinit()
 {
 	// peripherals
 	gpu_deinit();
+	nvic_deinit();
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);

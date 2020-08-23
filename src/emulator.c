@@ -27,8 +27,6 @@ int32_t execute_next( int is_debug_mode );
 void update_nz_flags(int32_t reg);
 void update_vr_flags(char carry, char overflow);
 void sigint_handler();
-int store_to_memory(uint32_t value, uint32_t address, int n_bytes);
-int load_from_memory(uint32_t *destination, uint32_t address, int n_bytes);
 
 //Emulator main function
 int32_t main(int32_t argc, char* argv[])
@@ -39,9 +37,9 @@ int32_t main(int32_t argc, char* argv[])
         return 1;
     }
 
-    // fill rom with 1s
-    memset(rom, 0xFF, sizeof(rom));
-    memset(ram, 0xFF, sizeof(ram));
+    // fill rom with 0xCD
+    memset(rom, 0xCD, sizeof(rom));
+    memset(ram, 0xCD, sizeof(ram));
     
     // init SDL
     system_init();
@@ -60,16 +58,17 @@ int32_t main(int32_t argc, char* argv[])
     LR = 0xFFFFFFFF;
 
     //First 4 bytes in ROM specifies initializes the stack pointer
-    load_from_memory( &SP, ROM_MIN, 4);
-
+    // load_from_memory( &SP, ROM_MIN, 4);
+    
     // SP must be word aligned
-    SP &= ~3;
+    // SP &= ~3;
 
     //Following 4 bytes in ROM initializes the PC
-    load_from_memory( &PC, ROM_MIN+4, 4);
+    // load_from_memory( &PC, ROM_MIN+4, 4);
 
     // gcc will generate _start+1 for thumb, so truncate last bit
-    PC &= ~1;
+    // PC &= ~1;
+    PC = 0;
 
     // PC always points to the first byte of the instr to execute next.
     // PC += 4; // WRONG!
@@ -88,9 +87,18 @@ int32_t main(int32_t argc, char* argv[])
             puts("Alignment fault");
             return -1;
         }
-        
+
+        // retardation
+        for (int i = 0; i<2000000000; i++);
+
+        nvic_print();
+        nvic_update();
         int err = execute_next( is_debug_mode );
         debug_inst_elapsed++;
+
+        if (PC > 0xFFFFFFF0) {
+            nvic_exit_interrupt();
+        }
 
         if (err) break;
     }
@@ -181,8 +189,12 @@ int store_to_memory(uint32_t value, uint32_t address, int n_bytes) {
     else if(address >= RAM_MIN && address <= RAM_MAX) {
         memcpy(ram + address - RAM_MIN, &value, n_bytes);
     }
-    else if(address >= GPU_MIN && address <= GPU_MAX)
+    else if(address >= GPU_MIN && address <= GPU_MAX) {
         gpu_write(address, value, n_bytes);
+    }
+    else if(address >= NVIC_MIN && address <= NVIC_MAX) {
+        nvic_write(address, value, n_bytes);
+    }
 
 }
 
@@ -200,8 +212,13 @@ int load_from_memory(uint32_t *destination, uint32_t address, int n_bytes) {
     else if(address >= RAM_MIN && address <= RAM_MAX) { 
         memcpy(destination, ram + address - RAM_MIN, n_bytes);
     }
-    else if(address >= GPU_MIN && address <= GPU_MAX)
+    else if(address >= GPU_MIN && address <= GPU_MAX) {
         gpu_read(address, destination, n_bytes);
+    }
+    else if(address >= NVIC_MIN && address <= NVIC_MAX) {
+        nvic_read(address, destination, n_bytes);
+    }
+    
 }
 
 struct range rangeOf(uint32_t from) {
@@ -212,7 +229,7 @@ struct range rangeOf(uint32_t from) {
     uint32_t maxs[] = {ROM_MAX, RAM_MAX, GPU_MAX, NVIC_MAX};
     int lens[] = {ROM_LEN, RAM_LEN, GPU_LEN, NVIC_LEN};
     char* adrs[] = {rom, ram, gpu, nvic};
-    int regions = 3;
+    int regions = 4;
 
     new.exists = 0;
 
@@ -1584,6 +1601,8 @@ int32_t execute_next( int is_debug_mode )
     // SWI immed
     else if (GET_BITS(inst, 15, 8) == 0b11011111) {
         // TODO
+
+        nvic_activate(5); // syscall
         PC += 2;
         return 0;
     }

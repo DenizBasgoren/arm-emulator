@@ -11,11 +11,10 @@ let arr = `
 */
 
 // EDIT HERE
-let dir = 'samples/gol'
+let dir = 'samples/interrupt'
 let arr = `
 
-vectable.s
-main.c
+main.s
 
 `
 // EDIT END
