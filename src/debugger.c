@@ -103,7 +103,7 @@ void debug_printRegisters() {
 }
 
 void debug_disassemble() {
-    system("arm-none-eabi-objdump -d dist-linux/armapp.elf");
+    system("arm-none-eabi-objdump -d ./armapp.elf");
 }
 
 void debug_printMemoryBetween(uint32_t from, uint32_t to) {

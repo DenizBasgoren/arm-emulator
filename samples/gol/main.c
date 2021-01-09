@@ -48,7 +48,7 @@ void loadTexture(char* data, int w, int h)
     wh[1] = h;
 
     i32* addr = (void*)(TXT + 4);
-    *addr = (void*)data;
+    *addr = (int)(void*)data;
     i8* chn = (void*)(TXT + 8);
     *chn = 4;
     
@@ -89,7 +89,7 @@ void _start()
                 data[j*W+i] = cells[i][j] * 0xFFFFFFFF;
             }
 
-        loadTexture(data, 80, 60);
+        loadTexture((char*)data, 80, 60);
         gpuDraw(1);
         
         for(int i = 1; i < W-1; i++)

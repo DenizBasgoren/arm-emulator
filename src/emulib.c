@@ -12,7 +12,7 @@
 #define SCREEN_WIDTH	800
 #define SCREEN_HEIGHT	600
 #define N_SLOTS			4
-#define WINDOW_NAME		"Puhu OS"
+#define WINDOW_NAME		"Arm Emulator"
 
 extern uint8_t gpu[];
 extern uint8_t ram[];
@@ -301,7 +301,7 @@ int32_t load_program(char *rom_path, char *ram_path, uint8_t *rom, uint8_t *ram)
 	}
 	fclose(infile);
 
-	printf("Loaded successfully!\n");
+	printf("Loaded successfully! Press ctrl+c to exit.\n");
 	return 0;
 }
 

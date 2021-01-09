@@ -52,7 +52,7 @@ void loadTexture(const char* data, int w, int h)
     wh[1] = h;
 
     i32* addr = (void*)(TXT + 4);
-    *addr = (void*)data;
+    *addr = (int)(void*)data;
     i8* chn = (void*)(TXT + 8);
     *chn = 3;
     
